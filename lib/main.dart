@@ -6,81 +6,71 @@ import 'services/auth_service.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
-
-  runApp(
-    const NovaHrApp(),
-  );
+  runApp(const NovaHrApp());
 }
 
 class NovaHrApp extends StatelessWidget {
-  const NovaHrApp({
-    super.key,
-  });
+  const NovaHrApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'NovaHR Attendance',
       debugShowCheckedModeBanner: false,
-
       theme: ThemeData(
         useMaterial3: true,
         fontFamily: 'Roboto',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.blue,
-          brightness: Brightness.light,
+          seedColor: const Color(0xFF90CA28), // Company Green
+          brightness: Brightness.dark,
+          surface: const Color(0xFF343A40),
         ),
-        scaffoldBackgroundColor:
-            const Color(0xFFF6F8FC),
+        scaffoldBackgroundColor: const Color(0xFF2A3036), // Dark Slate Background
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          surfaceTintColor: Colors.transparent,
+          iconTheme: IconThemeData(color: Colors.white),
+          titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        textTheme: const TextTheme(
+          bodyLarge: TextStyle(color: Colors.white),
+          bodyMedium: TextStyle(color: Colors.white),
+        ),
       ),
-
       home: const AuthGate(),
     );
   }
 }
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({
-    super.key,
-  });
+  const AuthGate({super.key});
 
   @override
-  State<AuthGate> createState() =>
-      _AuthGateState();
+  State<AuthGate> createState() => _AuthGateState();
 }
 
-class _AuthGateState
-    extends State<AuthGate> {
-  final _authService =
-      AuthService();
-
+class _AuthGateState extends State<AuthGate> {
+  final _authService = AuthService();
   Future<bool>? _loginCheck;
 
   @override
   void initState() {
     super.initState();
-
-    _loginCheck =
-        _authService.isLoggedIn();
+    _loginCheck = _authService.isLoggedIn();
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
       future: _loginCheck,
-      builder: (
-        context,
-        snapshot,
-      ) {
-        if (snapshot.connectionState ==
-            ConnectionState.waiting) {
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
           return const _SplashScreen();
         }
-
         if (snapshot.data == true) {
           return const HomeScreen();
         }
-
         return const LoginScreen();
       },
     );
@@ -101,8 +91,6 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
   @override
   void initState() {
     super.initState();
-    
-    // Setup a repeating pulse animation
     _controller = AnimationController(
       duration: const Duration(milliseconds: 1200),
       vsync: this,
@@ -123,42 +111,27 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F8FC),
+      backgroundColor: const Color(0xFF2A3036),
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Animated Logo
             ScaleTransition(
-              scale: Tween<double>(begin: 0.85, end: 1.05).animate(_animation),
+              scale: Tween<double>(begin: 0.95, end: 1.05).animate(_animation),
               child: Image.asset(
                 'assets/images/logo.png',
-                width: 100,
-                height: 100,
+                height: 80,
+                errorBuilder: (context, error, stackTrace) => 
+                  const Icon(Icons.business, size: 80, color: Color(0xFF90CA28)),
               ),
             ),
-            const SizedBox(height: 24),
-            const Text(
-              'NovaHR',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              'Loading...',
-              style: TextStyle(
-                color: Colors.grey.shade600,
-              ),
-            ),
+            const SizedBox(height: 30),
+            Text('Loading...', style: TextStyle(color: Colors.grey.shade400)),
             const SizedBox(height: 24),
             const SizedBox(
               width: 25,
               height: 25,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-              ),
+              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF90CA28)),
             ),
           ],
         ),
