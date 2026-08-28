@@ -87,57 +87,76 @@ class _AuthGateState
   }
 }
 
-class _SplashScreen
-    extends StatelessWidget {
+class _SplashScreen extends StatefulWidget {
   const _SplashScreen();
+
+  @override
+  State<_SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    
+    // Setup a repeating pulse animation
+    _controller = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    )..repeat(reverse: true);
+
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          const Color(0xFFF6F8FC),
+      backgroundColor: const Color(0xFFF6F8FC),
       body: Center(
         child: Column(
-          mainAxisSize:
-              MainAxisSize.min,
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
-              width: 75,
-              height: 75,
-              decoration: BoxDecoration(
-                color: Colors.blue,
-                borderRadius:
-                    BorderRadius.circular(20),
-              ),
-              child: const Icon(
-                Icons.business_center_rounded,
-                color: Colors.white,
-                size: 38,
+            // Animated Logo
+            ScaleTransition(
+              scale: Tween<double>(begin: 0.85, end: 1.05).animate(_animation),
+              child: Image.asset(
+                'assets/images/logo.png',
+                width: 100,
+                height: 100,
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
             const Text(
               'NovaHR',
               style: TextStyle(
                 fontSize: 28,
-                fontWeight:
-                    FontWeight.w800,
+                fontWeight: FontWeight.w800,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               'Loading...',
               style: TextStyle(
-                color:
-                    Colors.grey.shade600,
+                color: Colors.grey.shade600,
               ),
             ),
             const SizedBox(height: 24),
             const SizedBox(
               width: 25,
               height: 25,
-              child:
-                  CircularProgressIndicator(
+              child: CircularProgressIndicator(
                 strokeWidth: 2,
               ),
             ),

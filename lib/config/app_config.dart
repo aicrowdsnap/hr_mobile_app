@@ -15,22 +15,22 @@ class AppConfig {
 
     // Flutter Web
     if (kIsWeb) {
-      return 'http://localhost:3000';
+      return 'https://novahr.crowdsnap.ai';
     }
 
     // Android Emulator
     if (defaultTargetPlatform ==
         TargetPlatform.android) {
-      return 'http://10.0.2.2:3000';
+      return 'https://novahr.crowdsnap.ai';
     }
 
     // iOS Simulator
     if (defaultTargetPlatform ==
         TargetPlatform.iOS) {
-      return 'http://localhost:3000';
+      return 'https://novahr.crowdsnap.ai';
     }
 
     // Fallback
-    return 'http://localhost:3000';
+    return 'https://novahr.crowdsnap.ai';
   }
 }

@@ -29,7 +29,6 @@ class AttendanceService {
         'endDate': endDate,
       },
     );
-
     if (result == null) return [];
     return List<dynamic>.from(result);
   }
@@ -74,5 +73,46 @@ class AttendanceService {
       'attendance.endBreak',
       {},
     );
+  }
+
+  Future<List<dynamic>> getHolidays({required int year}) async {
+    final result = await _api.getTrpc(
+      'holidays.getAll',
+      {'year': year},
+    );
+    if (result == null) return [];
+    return List<dynamic>.from(result);
+  }
+
+  Future<List<dynamic>> getDailyAttendanceRecords({
+    required String employeeId,
+    required int year,
+    required int month,
+  }) async {
+    final result = await _api.getTrpc(
+      'attendance.getDailyAttendanceRecords',
+      {
+        'employeeId': employeeId,
+        'year': year,
+        'month': month,
+      },
+    );
+    if (result == null) return [];
+    return List<dynamic>.from(result);
+  }
+
+  Future<List<dynamic>> getAttendanceHistory({
+    required String startDate,
+    required String endDate,
+  }) async {
+    final result = await _api.getTrpc(
+      'attendance.getAttendanceHistory',
+      {
+        'startDate': startDate,
+        'endDate': endDate,
+      },
+    );
+    if (result == null) return [];
+    return List<dynamic>.from(result['data'] ?? []);
   }
 }

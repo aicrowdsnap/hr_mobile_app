@@ -15,6 +15,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   AttendanceStatus? _attendance;
   List<dynamic> _shifts = [];
+  Map<String, dynamic>? _todayRecord;
 
   bool _loading = true;
   bool _actionLoading = false;
@@ -35,35 +36,53 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     });
 
     try {
-      // 1. Load current attendance status
+      // 1. Load current attendance status (this now includes the assigned shift!)
       final statusResult = await _attendanceService.getCurrentStatus();
+      final employeeData = statusResult['employee'] as Map<String, dynamic>?;
+      final employeeId = employeeData?['id']?.toString();
 
-      // 2. Load today's assigned shifts (matching Next.js range logic)
-      final now = DateTime.now().toUtc();
-      final today = DateTime.utc(now.year, now.month, now.day);
-      final tomorrow = today.add(const Duration(days: 1));
+      if (employeeId == null) {
+        throw Exception("Could not find employee profile.");
+      }
 
-      final shiftsResult = await _attendanceService.getMyDailyShifts(
-        startDate: today.toIso8601String(),
-        endDate: tomorrow.toIso8601String(),
+      // 2. Load monthly attendance history to check for today's record
+      final now = DateTime.now();
+      final history = await _attendanceService.getDailyAttendanceRecords(
+        employeeId: employeeId,
+        year: now.year,
+        month: now.month,
       );
 
       if (!mounted) return;
 
       setState(() {
         _attendance = AttendanceStatus.fromJson(statusResult);
-        _shifts = shiftsResult;
-
-        // Auto-select shift if exactly one is available
-        if (_shifts.length == 1) {
-          final shiftData = _shifts[0] as Map<String, dynamic>;
-          final shiftObj = shiftData['shift'] as Map<String, dynamic>?;
-          _selectedShiftId = shiftObj?['id']?.toString();
+        
+        // Extract the shift returned directly from getCurrentStatus
+        final currentShift = employeeData?['currentShift'] as Map<String, dynamic>?;
+        
+        if (currentShift != null) {
+          _shifts = [{'shift': currentShift}];
+          _selectedShiftId = currentShift['id']?.toString();
+        } else {
+          _shifts = [];
+          _selectedShiftId = null;
+        }
+        
+        _todayRecord = null;
+        // Find today's record manually from the monthly list
+        for (var a in history) {
+          if (a['attendanceDate'] != null) {
+            final d = DateTime.parse(a['attendanceDate'].toString()).toLocal();
+            if (d.year == now.year && d.month == now.month && d.day == now.day) {
+              _todayRecord = a as Map<String, dynamic>;
+              break;
+            }
+          }
         }
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _error = e.toString().replaceFirst('Exception: ', '');
       });
@@ -172,14 +191,25 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   @override
   Widget build(BuildContext context) {
     final isClockedIn = _attendance?.isClockedIn ?? false;
+    
+    // Check if user already clocked out today
+    final hasCompletedToday = !isClockedIn && _todayRecord != null && _todayRecord!['clockOutTime'] != null;
+
+    // Use active attendance times if clocked in, otherwise use historical record times if they exist
+    final displayClockIn = isClockedIn ? _attendance?.clockInTime : _todayRecord?['clockInTime']?.toString();
+    final displayClockOut = isClockedIn ? _attendance?.clockOutTime : _todayRecord?['clockOutTime']?.toString();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F8FC),
       appBar: AppBar(
-        title: const Text('Attendance'),
+        title: const Text('Mark Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
         backgroundColor: Colors.transparent,
         elevation: 0,
         surfaceTintColor: Colors.transparent,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
       ),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -206,24 +236,34 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     width: 90,
                     height: 90,
                     decoration: BoxDecoration(
-                      color: isClockedIn
-                          ? Colors.green.withValues(alpha: 0.1)
-                          : Colors.blue.withValues(alpha: 0.1),
+                      color: hasCompletedToday
+                          ? Colors.teal.withValues(alpha: 0.1)
+                          : isClockedIn
+                              ? Colors.green.withValues(alpha: 0.1)
+                              : Colors.blue.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      isClockedIn
-                          ? Icons.how_to_reg_rounded
-                          : Icons.access_time_rounded,
+                      hasCompletedToday
+                          ? Icons.check_circle_rounded
+                          : isClockedIn
+                              ? Icons.how_to_reg_rounded
+                              : Icons.access_time_rounded,
                       size: 48,
-                      color: isClockedIn ? Colors.green : Colors.blue,
+                      color: hasCompletedToday
+                          ? Colors.teal
+                          : isClockedIn
+                              ? Colors.green
+                              : Colors.blue,
                     ),
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    isClockedIn
-                        ? 'You are currently clocked in'
-                        : 'You are not clocked in',
+                    hasCompletedToday
+                        ? 'Shift Completed'
+                        : isClockedIn
+                            ? 'You are currently clocked in'
+                            : 'You are not clocked in',
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       fontSize: 21,
@@ -232,9 +272,11 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    isClockedIn
-                        ? 'Your attendance is active for today.'
-                        : 'Select your shift and clock in to start.',
+                    hasCompletedToday
+                        ? 'You have already completed your shift for today.'
+                        : isClockedIn
+                            ? 'Your attendance is active for today.'
+                            : 'Select your shift and clock in to start.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       color: Colors.grey.shade600,
@@ -243,8 +285,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   ),
                   const SizedBox(height: 28),
 
-                  // Shift Selection Dropdown (Visible only when clocking out is inactive and shifts exist)
-                  if (!isClockedIn && !_loading) ...[
+                  // Shift Selection Dropdown (Hidden if shift is already completed)
+                  if (!isClockedIn && !hasCompletedToday && !_loading) ...[
                     if (_shifts.isEmpty)
                       Container(
                         padding: const EdgeInsets.all(12),
@@ -287,7 +329,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                           return DropdownMenuItem<String>(
                             value: shift['id'].toString(),
                             child: Text(
-                              '${shift['name']} (${shift['startTime']} - ${shift['endTime-'] ?? shift['endTime']})',
+                              '${shift['name']} (${shift['startTime']} - ${shift['endTime']})',
                               style: const TextStyle(fontSize: 14),
                             ),
                           );
@@ -324,11 +366,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     )
                   else
                     _Times(
-                      clockIn: _formatTime(_attendance?.clockInTime),
-                      clockOut: _formatTime(_attendance?.clockOutTime),
+                      clockIn: _formatTime(displayClockIn),
+                      clockOut: _formatTime(displayClockOut),
                     ),
                   const SizedBox(height: 30),
-                  if (!_loading)
+                  
+                  // Hide action button entirely if shift is completed today
+                  if (!_loading && !hasCompletedToday)
                     SizedBox(
                       width: double.infinity,
                       height: 56,
