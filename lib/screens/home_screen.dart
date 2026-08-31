@@ -64,6 +64,7 @@ class _HomeScreenState extends State<HomeScreen> {
               clockInTime: todayRecord?['clockInTime']?.toString(),
               clockOutTime: todayRecord?['clockOutTime']?.toString(),
               date: todayRecord?['attendanceDate']?.toString(),
+              totalWorkingMinutes: todayRecord?['totalWorkingMinutes'],
             );
           });
         }
@@ -258,23 +259,48 @@ class _ProfileDetailRow extends StatelessWidget {
 class AttendanceStatusCard extends StatelessWidget {
   final AttendanceStatus? attendance;
   const AttendanceStatusCard({super.key, required this.attendance});
+
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
-      final dateTime = DateTime.parse(value).toLocal();
+      DateTime dateTime = DateTime.parse(value);
+      
+      dateTime = dateTime.toLocal().subtract(const Duration(hours: 5, minutes: 30));
+
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';
       return '$hour:$minute $period';
     } catch (_) { return value; }
   }
+
+  String _formatWorkingHours() {
+    int totalMins = attendance?.totalWorkingMinutes ?? 0;
+    
+    if (totalMins == 0 && (attendance?.isClockedIn ?? false) && attendance?.clockInTime != null) {
+      try {
+        final clockInTime = DateTime.parse(attendance!.clockInTime!).toLocal().subtract(const Duration(hours: 5, minutes: 30));
+        totalMins = DateTime.now().difference(clockInTime).inMinutes;
+      } catch (_) {}
+    }
+
+    if (totalMins <= 0) return '--';
+
+    final hours = totalMins ~/ 60;
+    final mins = totalMins % 60;
+
+    if (hours == 0) return '$mins mins';
+    if (mins == 0) return '$hours hrs';
+    return '$hours hrs $mins mins';
+  }
+
   @override
   Widget build(BuildContext context) {
     final isIn = attendance?.isClockedIn ?? false;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2328), // Darker inset
+        color: const Color(0xFF1E2328),
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: isIn ? const Color(0xFF90CA28).withValues(alpha: 0.5) : Colors.transparent),
       ),
@@ -293,11 +319,21 @@ class AttendanceStatusCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 28),
+          const SizedBox(height: 22),
           Row(
             children: [
               Expanded(child: _HomeTime(title: 'Clock In', time: _formatTime(attendance?.clockInTime))),
               Expanded(child: _HomeTime(title: 'Clock Out', time: _formatTime(attendance?.clockOutTime))),
+            ],
+          ),
+          const SizedBox(height: 15),
+          const Divider(color: Colors.white12),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Total Worked Time:', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+              Text(_formatWorkingHours(), style: const TextStyle(color: Color(0xFF90CA28), fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
         ],

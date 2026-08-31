@@ -115,7 +115,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
-      final dateTime = DateTime.parse(value).toLocal();
+      DateTime dateTime = DateTime.parse(value);
+      dateTime = dateTime.toLocal().subtract(const Duration(hours: 5, minutes: 30));
+
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';

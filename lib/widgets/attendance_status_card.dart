@@ -11,31 +11,22 @@ class AttendanceStatusCard extends StatelessWidget {
   });
 
   String _formatTime(String? value) {
-    if (value == null ||
-        value.trim().isEmpty) {
+    if (value == null || value.trim().isEmpty) {
       return '--';
     }
 
     try {
-      final dateTime =
-          DateTime.parse(value).toLocal();
+      DateTime dateTime = DateTime.parse(value);
+      dateTime = dateTime.toLocal().subtract(const Duration(hours: 5, minutes: 30));
 
-      final hour =
-          dateTime.hour == 0
-              ? 12
-              : dateTime.hour > 12
-                  ? dateTime.hour - 12
-                  : dateTime.hour;
+      final hour = dateTime.hour == 0
+          ? 12
+          : dateTime.hour > 12
+              ? dateTime.hour - 12
+              : dateTime.hour;
 
-      final minute =
-          dateTime.minute
-              .toString()
-              .padLeft(2, '0');
-
-      final period =
-          dateTime.hour >= 12
-              ? 'PM'
-              : 'AM';
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final period = dateTime.hour >= 12 ? 'PM' : 'AM';
 
       return '$hour:$minute $period';
     } catch (_) {
@@ -45,28 +36,24 @@ class AttendanceStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isClockedIn =
-        attendance?.isClockedIn ?? false;
+    final isClockedIn = attendance?.isClockedIn ?? false;
 
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius:
-            BorderRadius.circular(22),
+        color: const Color(0xFF343A40),
+        borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: Colors.black
-                .withValues(alpha: 0.06),
+            color: Colors.black.withValues(alpha: 0.1),
             blurRadius: 20,
             offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
@@ -75,134 +62,101 @@ class AttendanceStatusCard extends StatelessWidget {
                 height: 52,
                 decoration: BoxDecoration(
                   color: isClockedIn
-                      ? Colors.green
-                          .withValues(alpha: 0.12)
-                      : Colors.orange
-                          .withValues(alpha: 0.12),
-                  borderRadius:
-                      BorderRadius.circular(15),
+                      ? const Color(0xFF90CA28).withValues(alpha: 0.15)
+                      : Colors.orange.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(15),
                 ),
                 child: Icon(
-                  isClockedIn
-                      ? Icons.login_rounded
-                      : Icons.schedule_rounded,
-                  color: isClockedIn
-                      ? Colors.green
-                      : Colors.orange,
+                  isClockedIn ? Icons.login_rounded : Icons.schedule_rounded,
+                  color: isClockedIn ? const Color(0xFF90CA28) : Colors.orange,
                   size: 28,
                 ),
               ),
-
               const SizedBox(width: 15),
-
               Expanded(
                 child: Column(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       'Today',
                       style: TextStyle(
-                        color: Colors.grey.shade600,
+                        color: Colors.grey.shade400,
                         fontSize: 14,
                       ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      isClockedIn
-                          ? 'Clocked In'
-                          : 'Not Clocked In',
+                      isClockedIn ? 'Clocked In' : 'Not Clocked In',
                       style: const TextStyle(
                         fontSize: 19,
-                        fontWeight:
-                            FontWeight.bold,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
                       ),
                     ),
                   ],
                 ),
               ),
-
               Container(
-                padding:
-                    const EdgeInsets.symmetric(
+                padding: const EdgeInsets.symmetric(
                   horizontal: 12,
                   vertical: 7,
                 ),
                 decoration: BoxDecoration(
                   color: isClockedIn
-                      ? Colors.green
-                          .withValues(alpha: 0.1)
-                      : Colors.grey
-                          .withValues(alpha: 0.1),
-                  borderRadius:
-                      BorderRadius.circular(30),
+                      ? const Color(0xFF90CA28).withValues(alpha: 0.2)
+                      : Colors.grey.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(30),
                 ),
                 child: Text(
-                  isClockedIn
-                      ? 'ACTIVE'
-                      : 'OFF',
+                  isClockedIn ? 'ACTIVE' : 'OFF',
                   style: TextStyle(
-                    color: isClockedIn
-                        ? Colors.green
-                        : Colors.grey.shade700,
+                    color: isClockedIn ? const Color(0xFF90CA28) : Colors.grey.shade300,
                     fontSize: 11,
-                    fontWeight:
-                        FontWeight.bold,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-
           const SizedBox(height: 25),
-
           Row(
             children: [
               Expanded(
                 child: _TimeItem(
                   icon: Icons.login,
                   title: 'Clock In',
-                  value: _formatTime(
-                    attendance?.clockInTime,
-                  ),
+                  value: _formatTime(attendance?.clockInTime),
                 ),
               ),
-
               Container(
                 height: 55,
                 width: 1,
-                color: Colors.grey.shade200,
+                color: Colors.grey.shade700,
               ),
-
               Expanded(
                 child: _TimeItem(
                   icon: Icons.logout,
                   title: 'Clock Out',
-                  value: _formatTime(
-                    attendance?.clockOutTime,
-                  ),
+                  value: _formatTime(attendance?.clockOutTime),
                 ),
               ),
             ],
           ),
-
           if (attendance?.location != null) ...[
             const SizedBox(height: 20),
-
             Row(
               children: [
                 Icon(
                   Icons.location_on_outlined,
                   size: 19,
-                  color: Colors.grey.shade600,
+                  color: Colors.grey.shade400,
                 ),
                 const SizedBox(width: 7),
                 Expanded(
                   child: Text(
                     attendance!.location!,
                     style: TextStyle(
-                      color:
-                          Colors.grey.shade700,
+                      color: Colors.grey.shade300,
                       fontSize: 13,
                     ),
                   ),
@@ -230,23 +184,20 @@ class _TimeItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
-        horizontal: 8,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: 8),
       child: Column(
         children: [
           Icon(
             icon,
             size: 21,
-            color: Colors.blue,
+            color: Colors.blue.shade400,
           ),
           const SizedBox(height: 7),
           Text(
             title,
             style: TextStyle(
               fontSize: 12,
-              color: Colors.grey.shade600,
+              color: Colors.grey.shade400,
             ),
           ),
           const SizedBox(height: 4),
@@ -255,6 +206,7 @@ class _TimeItem extends StatelessWidget {
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.bold,
+              color: Colors.white,
             ),
           ),
         ],
