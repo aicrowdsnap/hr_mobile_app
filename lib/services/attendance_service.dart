@@ -24,7 +24,7 @@ class AttendanceService {
   Future<void> clockIn({
     String? shiftId,
     String? notes,
-    String? ipAddress, // Format: "latitude,longitude"
+    String? ipAddress,
   }) async {
     await _api.postTrpc(
       'attendance.clockIn',
