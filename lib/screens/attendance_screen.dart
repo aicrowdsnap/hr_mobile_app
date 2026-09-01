@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/attendance_status.dart';
 import '../services/attendance_service.dart';
@@ -36,26 +37,44 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       if (employeeId == null) throw Exception("Could not find employee profile.");
 
       final now = DateTime.now();
-      final history = await _attendanceService.getDailyAttendanceRecords(employeeId: employeeId, year: now.year, month: now.month);
+      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+
+      final todayUtcStart = DateTime.utc(now.year, now.month, now.day);
+      final tomorrowUtcStart = DateTime.utc(now.year, now.month, now.day + 1);
+
+      final historyFuture = _attendanceService.getDailyAttendanceRecords(
+        employeeId: employeeId, 
+        year: now.year, 
+        month: now.month,
+      );
+      
+      final shiftsFuture = _attendanceService.getMyDailyShifts(
+        startDate: todayUtcStart.toIso8601String(),
+        endDate: tomorrowUtcStart.toIso8601String(),
+      );
+
+      final results = await Future.wait([historyFuture, shiftsFuture]);
+      final history = results[0] as List<dynamic>;
+      final shiftsList = results[1] as List<dynamic>;
 
       if (!mounted) return;
+
       setState(() {
         _attendance = AttendanceStatus.fromJson(statusResult);
-        final currentShift = employeeData?['currentShift'] as Map<String, dynamic>?;
-        
-        if (currentShift != null) {
-          _shifts = [{'shift': currentShift}];
-          _selectedShiftId = currentShift['id']?.toString();
+        _shifts = shiftsList;
+
+        if (_shifts.isNotEmpty) {
+          final shiftObj = _shifts[0]['shift'] as Map<String, dynamic>?;
+          _selectedShiftId = shiftObj?['id']?.toString();
         } else {
-          _shifts = [];
           _selectedShiftId = null;
         }
         
         _todayRecord = null;
         for (var a in history) {
           if (a['attendanceDate'] != null) {
-            final d = DateTime.parse(a['attendanceDate'].toString()).toLocal();
-            if (d.year == now.year && d.month == now.month && d.day == now.day) {
+            final dateStr = a['attendanceDate'].toString().split('T')[0];
+            if (dateStr == todayStr) {
               _todayRecord = a as Map<String, dynamic>;
               break;
             }
@@ -71,8 +90,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 
   Future<void> _clockIn() async {
+    if (_shifts.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('No shifts assigned for today. Cannot clock in.'), 
+        backgroundColor: Colors.orange,
+      ));
+      return;
+    }
+
     if (_selectedShiftId == null || _selectedShiftId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a shift before clocking in'), backgroundColor: Colors.orange));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text('Please select a shift before clocking in'), 
+        backgroundColor: Colors.orange,
+      ));
       return;
     }
     await _performAttendanceAction(clockIn: true);
@@ -86,7 +116,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _actionLoading = true);
     try {
       if (clockIn) {
-        await _attendanceService.clockIn(shiftId: _selectedShiftId!);
+        await _attendanceService.clockIn(shiftId: _selectedShiftId);
       } else {
         await _attendanceService.clockOut();
       }
@@ -97,7 +127,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ..showSnackBar(SnackBar(
           content: Text(clockIn ? 'Clock-in successful' : 'Clock-out successful', style: const TextStyle(color: Colors.white)),
           backgroundColor: const Color(0xFF90CA28),
-          behavior: SnackBarBehavior.floating, margin: const EdgeInsets.all(16),
+          behavior: SnackBarBehavior.floating, 
+          margin: const EdgeInsets.all(16),
         ));
     } catch (e) {
       if (!mounted) return;
@@ -105,7 +136,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           content: Text(e.toString(), style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red.shade700, behavior: SnackBarBehavior.floating, margin: const EdgeInsets.all(16),
+          backgroundColor: Colors.red.shade700, 
+          behavior: SnackBarBehavior.floating, 
+          margin: const EdgeInsets.all(16),
         ));
     } finally {
       if (mounted) setState(() => _actionLoading = false);
@@ -115,9 +148,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
-      DateTime dateTime = DateTime.parse(value);
-      dateTime = dateTime.toLocal().subtract(const Duration(hours: 5, minutes: 30));
-
+      DateTime dateTime = DateTime.parse(value).toLocal();
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';
@@ -131,6 +162,9 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final hasCompletedToday = !isClockedIn && _todayRecord != null && _todayRecord!['clockOutTime'] != null;
     final displayClockIn = isClockedIn ? _attendance?.clockInTime : _todayRecord?['clockInTime']?.toString();
     final displayClockOut = isClockedIn ? _attendance?.clockOutTime : _todayRecord?['clockOutTime']?.toString();
+
+    // STRICT REQUIREMENT CHECK: Disable clock-in button if no shifts are assigned today
+    final bool canClockIn = _shifts.isNotEmpty;
 
     return Scaffold(
       backgroundColor: const Color(0xFF2A3036),
@@ -169,16 +203,26 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
                   ),
                   const SizedBox(height: 28),
+                  
                   if (!isClockedIn && !hasCompletedToday && !_loading) ...[
                     if (_shifts.isEmpty)
                       Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.amber.withValues(alpha: 0.3))),
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withValues(alpha: 0.1), 
+                          borderRadius: BorderRadius.circular(14), 
+                          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                        ),
                         child: Row(
                           children: [
                             const Icon(Icons.warning_amber_rounded, color: Colors.amber),
-                            const SizedBox(width: 10),
-                            Expanded(child: Text('No shifts assigned for today. Please contact HR.', style: TextStyle(color: Colors.amber.shade200, fontSize: 13))),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'No shifts assigned to you for today. Please contact HR to assign a shift.', 
+                                style: TextStyle(color: Colors.amber.shade200, fontSize: 13),
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -206,6 +250,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       ),
                     const SizedBox(height: 20),
                   ],
+
                   if (_loading) const CircularProgressIndicator(color: Color(0xFF90CA28))
                   else if (_error != null)
                     Column(
@@ -218,16 +263,19 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                   else
                     _Times(clockIn: _formatTime(displayClockIn), clockOut: _formatTime(displayClockOut)),
                   const SizedBox(height: 30),
+                  
                   if (!_loading && !hasCompletedToday)
                     SizedBox(
                       width: double.infinity, height: 56,
                       child: ElevatedButton.icon(
-                        onPressed: _actionLoading || (!isClockedIn && _shifts.isEmpty) ? null : isClockedIn ? _clockOut : _clockIn,
+                        // Disabled if loading, or if trying to clock in when no shifts are assigned
+                        onPressed: _actionLoading || (!isClockedIn && !canClockIn) ? null : isClockedIn ? _clockOut : _clockIn,
                         icon: _actionLoading ? const SizedBox(width: 21, height: 21, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : Icon(isClockedIn ? Icons.logout_rounded : Icons.login_rounded),
                         label: Text(_actionLoading ? 'Processing...' : isClockedIn ? 'Clock Out' : 'Clock In', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: isClockedIn ? Colors.red.shade600 : const Color(0xFF90CA28),
+                          disabledBackgroundColor: Colors.grey.shade700,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),

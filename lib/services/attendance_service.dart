@@ -4,44 +4,32 @@ class AttendanceService {
   final ApiClient _api = ApiClient();
 
   Future<Map<String, dynamic>> getCurrentStatus() async {
-    final result = await _api.getTrpc(
-      'attendance.getCurrentStatus',
-    );
-
-    if (result == null) {
-      return {
-        'status': 'clocked_out',
-      };
-    }
-
+    final result = await _api.getTrpc('attendance.getCurrentStatus');
+    if (result == null) return {'status': 'clocked_out'};
     return Map<String, dynamic>.from(result);
   }
 
-  // Fetch daily shifts for the employee (matches Next.js orgSettings.getMyDailyShifts)
   Future<List<dynamic>> getMyDailyShifts({
     required String startDate,
     required String endDate,
   }) async {
     final result = await _api.getTrpc(
       'orgSettings.getMyDailyShifts',
-      {
-        'startDate': startDate,
-        'endDate': endDate,
-      },
+      {'startDate': startDate, 'endDate': endDate},
     );
     if (result == null) return [];
     return List<dynamic>.from(result);
   }
 
   Future<void> clockIn({
-    required String shiftId,
+    String? shiftId,
     String? notes,
-    String? ipAddress,
+    String? ipAddress, // Format: "latitude,longitude"
   }) async {
     await _api.postTrpc(
       'attendance.clockIn',
       {
-        'shiftId': shiftId,
+        if (shiftId != null && shiftId.isNotEmpty) 'shiftId': shiftId,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
         if (ipAddress != null && ipAddress.isNotEmpty) 'ipAddress': ipAddress,
       },
@@ -50,7 +38,7 @@ class AttendanceService {
 
   Future<void> clockOut({
     String? notes,
-    String? ipAddress,
+    String? ipAddress, // Format: "latitude,longitude"
   }) async {
     await _api.postTrpc(
       'attendance.clockOut',
@@ -62,24 +50,15 @@ class AttendanceService {
   }
 
   Future<void> startBreak() async {
-    await _api.postTrpc(
-      'attendance.startBreak',
-      {},
-    );
+    await _api.postTrpc('attendance.startBreak', {});
   }
 
   Future<void> endBreak() async {
-    await _api.postTrpc(
-      'attendance.endBreak',
-      {},
-    );
+    await _api.postTrpc('attendance.endBreak', {});
   }
 
   Future<List<dynamic>> getHolidays({required int year}) async {
-    final result = await _api.getTrpc(
-      'holidays.getAll',
-      {'year': year},
-    );
+    final result = await _api.getTrpc('holidays.getAll', {'year': year});
     if (result == null) return [];
     return List<dynamic>.from(result);
   }
@@ -91,11 +70,7 @@ class AttendanceService {
   }) async {
     final result = await _api.getTrpc(
       'attendance.getDailyAttendanceRecords',
-      {
-        'employeeId': employeeId,
-        'year': year,
-        'month': month,
-      },
+      {'employeeId': employeeId, 'year': year, 'month': month},
     );
     if (result == null) return [];
     return List<dynamic>.from(result);
@@ -107,10 +82,7 @@ class AttendanceService {
   }) async {
     final result = await _api.getTrpc(
       'attendance.getAttendanceHistory',
-      {
-        'startDate': startDate,
-        'endDate': endDate,
-      },
+      {'startDate': startDate, 'endDate': endDate},
     );
     if (result == null) return [];
     return List<dynamic>.from(result['data'] ?? []);

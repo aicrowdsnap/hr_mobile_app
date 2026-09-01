@@ -16,8 +16,7 @@ class AttendanceStatusCard extends StatelessWidget {
     }
 
     try {
-      DateTime dateTime = DateTime.parse(value);
-      dateTime = dateTime.toLocal().subtract(const Duration(hours: 5, minutes: 30));
+      DateTime dateTime = DateTime.parse(value).toLocal();
 
       final hour = dateTime.hour == 0
           ? 12

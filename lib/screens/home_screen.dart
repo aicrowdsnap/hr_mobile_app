@@ -44,13 +44,19 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (employeeId != null) {
         final now = DateTime.now();
-        final history = await _attendanceService.getDailyAttendanceRecords(employeeId: employeeId, year: now.year, month: now.month);
+        final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+        
+        final history = await _attendanceService.getDailyAttendanceRecords(
+          employeeId: employeeId, 
+          year: now.year, 
+          month: now.month
+        );
 
         Map<String, dynamic>? todayRecord;
         for (var a in history) {
           if (a['attendanceDate'] != null) {
-            final d = DateTime.parse(a['attendanceDate'].toString()).toLocal();
-            if (d.year == now.year && d.month == now.month && d.day == now.day) {
+            final dateStr = a['attendanceDate'].toString().split('T')[0];
+            if (dateStr == todayStr) {
               todayRecord = a as Map<String, dynamic>;
               break;
             }
@@ -263,9 +269,7 @@ class AttendanceStatusCard extends StatelessWidget {
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
-      DateTime dateTime = DateTime.parse(value);
-      
-      dateTime = dateTime.toLocal().subtract(const Duration(hours: 5, minutes: 30));
+      DateTime dateTime = DateTime.parse(value).toLocal();
 
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
@@ -279,7 +283,7 @@ class AttendanceStatusCard extends StatelessWidget {
     
     if (totalMins == 0 && (attendance?.isClockedIn ?? false) && attendance?.clockInTime != null) {
       try {
-        final clockInTime = DateTime.parse(attendance!.clockInTime!).toLocal().subtract(const Duration(hours: 5, minutes: 30));
+        final clockInTime = DateTime.parse(attendance!.clockInTime!).toLocal();
         totalMins = DateTime.now().difference(clockInTime).inMinutes;
       } catch (_) {}
     }

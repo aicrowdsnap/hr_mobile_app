@@ -52,17 +52,26 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
 
       final newHolidaysMap = <String, dynamic>{};
       for (var h in results[0]) {
-        if (h['date'] != null) newHolidaysMap[_dateKey(DateTime.parse(h['date'].toString()).toLocal())] = h;
+        if (h['date'] != null) {
+          final dateStr = h['date'].toString().split('T')[0];
+          newHolidaysMap[dateStr] = h;
+        }
       }
 
       final newAttendanceMap = <String, dynamic>{};
       for (var a in results[1]) {
-        if (a['attendanceDate'] != null) newAttendanceMap[_dateKey(DateTime.parse(a['attendanceDate'].toString()).toLocal())] = a;
+        if (a['attendanceDate'] != null) {
+          final dateStr = a['attendanceDate'].toString().split('T')[0];
+          newAttendanceMap[dateStr] = a;
+        }
       }
 
       final newShiftsMap = <String, dynamic>{};
       for (var s in results[2]) {
-        if (s['shiftDate'] != null) newShiftsMap[_dateKey(DateTime.parse(s['shiftDate'].toString()).toLocal())] = s['shift'];
+        if (s['shiftDate'] != null) {
+          final dateStr = s['shiftDate'].toString().split('T')[0];
+          newShiftsMap[dateStr] = s['shift'];
+        }
       }
 
       setState(() {
