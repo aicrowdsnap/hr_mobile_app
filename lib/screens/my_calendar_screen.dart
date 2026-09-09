@@ -35,8 +35,9 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
     try {
       final year = date.year;
       final month = date.month;
-      final startDate = DateTime.utc(year, month, 1);
-      final endDate = DateTime.utc(year, month + 1, 0, 23, 59, 59);
+      
+      final startDate = DateTime.utc(year, month, 1).subtract(const Duration(hours: 5, minutes: 30));
+      final endDate = DateTime.utc(year, month + 1, 1).subtract(const Duration(hours: 5, minutes: 30));
 
       final statusResult = await _service.getCurrentStatus();
       final employeeId = statusResult['employee']?['id']?.toString();
@@ -53,7 +54,8 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
       final newHolidaysMap = <String, dynamic>{};
       for (var h in results[0]) {
         if (h['date'] != null) {
-          final dateStr = h['date'].toString().split('T')[0];
+          final localDate = DateTime.parse(h['date']).toLocal();
+          final dateStr = DateFormat('yyyy-MM-dd').format(localDate);
           newHolidaysMap[dateStr] = h;
         }
       }
@@ -61,7 +63,8 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
       final newAttendanceMap = <String, dynamic>{};
       for (var a in results[1]) {
         if (a['attendanceDate'] != null) {
-          final dateStr = a['attendanceDate'].toString().split('T')[0];
+          final localDate = DateTime.parse(a['attendanceDate']).toLocal();
+          final dateStr = DateFormat('yyyy-MM-dd').format(localDate);
           newAttendanceMap[dateStr] = a;
         }
       }
@@ -69,7 +72,9 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
       final newShiftsMap = <String, dynamic>{};
       for (var s in results[2]) {
         if (s['shiftDate'] != null) {
-          final dateStr = s['shiftDate'].toString().split('T')[0];
+          // FIX: Convert UTC shiftDate to local SL date for map key
+          final localDate = DateTime.parse(s['shiftDate']).toLocal();
+          final dateStr = DateFormat('yyyy-MM-dd').format(localDate);
           newShiftsMap[dateStr] = s['shift'];
         }
       }

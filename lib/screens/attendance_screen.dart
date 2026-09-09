@@ -36,26 +36,41 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
       if (employeeId == null) throw Exception("Could not find employee profile.");
 
-      final now = DateTime.now();
-      final todayStr = DateFormat('yyyy-MM-dd').format(now);
+      final slNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+      final todayStr = DateFormat('yyyy-MM-dd').format(slNow);
 
-      final todayUtcStart = DateTime.utc(now.year, now.month, now.day);
-      final tomorrowUtcStart = DateTime.utc(now.year, now.month, now.day + 1);
+      // Fetch the full month range (aligned to Sri Lanka time) just like MyCalendarScreen
+      final startDate = DateTime.utc(slNow.year, slNow.month, 1).subtract(const Duration(hours: 5, minutes: 30));
+      final endDate = DateTime.utc(slNow.year, slNow.month + 1, 1).subtract(const Duration(hours: 5, minutes: 30));
 
       final historyFuture = _attendanceService.getDailyAttendanceRecords(
         employeeId: employeeId, 
-        year: now.year, 
-        month: now.month,
+        year: slNow.year, 
+        month: slNow.month,
       );
       
       final shiftsFuture = _attendanceService.getMyDailyShifts(
-        startDate: todayUtcStart.toIso8601String(),
-        endDate: tomorrowUtcStart.toIso8601String(),
+        startDate: startDate.toIso8601String(),
+        endDate: endDate.toIso8601String(),
       );
 
       final results = await Future.wait([historyFuture, shiftsFuture]);
       final history = results[0] as List<dynamic>;
-      final shiftsList = results[1] as List<dynamic>;
+      final rawShifts = results[1] as List<dynamic>;
+
+      // Map shifts by local date string to safely handle timestamp offsets
+      final shiftsMap = <String, dynamic>{};
+      for (var s in rawShifts) {
+        if (s['shiftDate'] != null) {
+          final localDate = DateTime.parse(s['shiftDate']).toLocal();
+          final dateStr = DateFormat('yyyy-MM-dd').format(localDate);
+          shiftsMap[dateStr] = s;
+        }
+      }
+
+      // Extract today's shift from the map
+      final todayShiftItem = shiftsMap[todayStr];
+      final shiftsList = todayShiftItem != null ? [todayShiftItem] : [];
 
       if (!mounted) return;
 
@@ -73,7 +88,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         _todayRecord = null;
         for (var a in history) {
           if (a['attendanceDate'] != null) {
-            final dateStr = a['attendanceDate'].toString().split('T')[0];
+            final attendanceLocalDate = DateTime.parse(a['attendanceDate']).toLocal();
+            final dateStr = DateFormat('yyyy-MM-dd').format(attendanceLocalDate);
             if (dateStr == todayStr) {
               _todayRecord = a as Map<String, dynamic>;
               break;
@@ -116,6 +132,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _actionLoading = true);
     try {
       if (clockIn) {
+        // FIX: shiftId MUST be passed because backend Zod schema strictly requires it
         await _attendanceService.clockIn(shiftId: _selectedShiftId);
       } else {
         await _attendanceService.clockOut();
@@ -132,10 +149,33 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ));
     } catch (e) {
       if (!mounted) return;
+      
+      String errorMessage = e.toString();
+      
+      if (errorMessage.contains('Current time is')) {
+        try {
+          final RegExp timeRegex = RegExp(r'Current time is (\d{2}:\d{2}:\d{2})');
+          final match = timeRegex.firstMatch(errorMessage);
+          
+          if (match != null) {
+            final utcTimeStr = match.group(1)!;
+            final now = DateTime.now();
+            final utcDate = DateTime.parse('${now.toString().split(' ')[0]} $utcTimeStr');
+            
+            // Add 5 hours and 30 minutes (Sri Lanka offset) to correct the error message
+            final localDate = utcDate.add(const Duration(hours: 5, minutes: 30));
+            final localTimeStr = DateFormat('HH:mm:ss').format(localDate);
+            
+            errorMessage = errorMessage.replaceAll(utcTimeStr, '$localTimeStr (Local Time)');
+          }
+        } catch (_) {
+        }
+      }
+
       ScaffoldMessenger.of(context)
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
-          content: Text(e.toString(), style: const TextStyle(color: Colors.white)),
+          content: Text(errorMessage, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.red.shade700, 
           behavior: SnackBarBehavior.floating, 
           margin: const EdgeInsets.all(16),
@@ -145,10 +185,32 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     }
   }
 
+  String _formatWorkingHours() {
+    int totalMins = _attendance?.totalWorkingMinutes ?? 0;
+    
+    if ((_attendance?.isClockedIn ?? false) && _attendance?.clockInTime != null) {
+      try {
+        final cleanTime = _attendance!.clockInTime!.replaceAll('Z', '').replaceAll('z', '');
+        final clockInTime = DateTime.parse(cleanTime);
+        totalMins = DateTime.now().difference(clockInTime).inMinutes;
+      } catch (_) {}
+    }
+
+    if (totalMins <= 0) return '--';
+
+    final hours = totalMins ~/ 60;
+    final mins = totalMins % 60;
+
+    if (hours == 0) return '$mins mins';
+    if (mins == 0) return '$hours hrs';
+    return '$hours hrs $mins mins';
+  }
+
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
-      DateTime dateTime = DateTime.parse(value).toLocal().subtract(const Duration(hours: 5, minutes: 30));
+      final cleanValue = value.replaceAll('Z', '').replaceAll('z', '');
+      DateTime dateTime = DateTime.parse(cleanValue);
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';
@@ -163,7 +225,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final displayClockIn = isClockedIn ? _attendance?.clockInTime : _todayRecord?['clockInTime']?.toString();
     final displayClockOut = isClockedIn ? _attendance?.clockOutTime : _todayRecord?['clockOutTime']?.toString();
 
-    // STRICT REQUIREMENT CHECK: Disable clock-in button if no shifts are assigned today
     final bool canClockIn = _shifts.isNotEmpty;
 
     return Scaffold(
@@ -260,11 +321,30 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
                       ],
                     )
-                  else
+                  else ...[
                     _Times(clockIn: _formatTime(displayClockIn), clockOut: _formatTime(displayClockOut)),
-                  const SizedBox(height: 30),
+                    if (isClockedIn) ...[
+                      const SizedBox(height: 16),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF1E2328),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text('Active Worked Time:', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                            Text(_formatWorkingHours(), style: const TextStyle(color: Color(0xFF90CA28), fontSize: 15, fontWeight: FontWeight.bold)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
                   
                   if (!_loading && !hasCompletedToday)
+                  const SizedBox(height: 20),
                     SizedBox(
                       width: double.infinity, height: 56,
                       child: ElevatedButton.icon(

@@ -22,7 +22,15 @@ class ApiClient {
   String get baseUrl => AppConfig.apiBaseUrl;
 
   Future<String?> getToken() async {
-    _authToken ??= await _storage.read(key: _tokenKey);
+    if (_authToken != null) return _authToken;
+    try {
+      _authToken = await _storage.read(key: _tokenKey);
+    } catch (e) {
+      try {
+        await _storage.deleteAll();
+      } catch (_) {}
+      _authToken = null;
+    }
     return _authToken;
   }
 

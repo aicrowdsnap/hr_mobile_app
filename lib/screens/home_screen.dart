@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../models/attendance_status.dart';
 import '../services/attendance_service.dart';
@@ -6,6 +7,7 @@ import '../services/auth_service.dart';
 import 'attendance_screen.dart';
 import 'login_screen.dart';
 import 'my_calendar_screen.dart';
+import 'leave_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -43,13 +45,13 @@ class _HomeScreenState extends State<HomeScreen> {
       });
 
       if (employeeId != null) {
-        final now = DateTime.now();
-        final todayStr = "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+        final slNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
+        final todayStr = DateFormat('yyyy-MM-dd').format(slNow);
         
         final history = await _attendanceService.getDailyAttendanceRecords(
           employeeId: employeeId, 
-          year: now.year, 
-          month: now.month
+          year: slNow.year, 
+          month: slNow.month
         );
 
         Map<String, dynamic>? todayRecord;
@@ -235,6 +237,15 @@ class _HomeScreenState extends State<HomeScreen> {
               subtitle: 'View shifts, holidays, and past records',
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCalendarScreen())),
             ),
+            const SizedBox(height: 14),
+            _QuickActionCard(
+              icon: Icons.event_note_rounded,
+              iconColor: Colors.orange.shade400,
+              title: 'Leave Management',
+              subtitle: 'Apply for leave & check balances',
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeaveScreen()),
+              ),
+            ),
           ],
         ),
       ),
@@ -269,7 +280,8 @@ class AttendanceStatusCard extends StatelessWidget {
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
-      DateTime dateTime = DateTime.parse(value).toLocal();
+      final cleanValue = value.replaceAll('Z', '').replaceAll('z', '');
+      DateTime dateTime = DateTime.parse(cleanValue);
 
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
@@ -281,9 +293,10 @@ class AttendanceStatusCard extends StatelessWidget {
   String _formatWorkingHours() {
     int totalMins = attendance?.totalWorkingMinutes ?? 0;
     
-    if (totalMins == 0 && (attendance?.isClockedIn ?? false) && attendance?.clockInTime != null) {
+    if ((attendance?.isClockedIn ?? false) && attendance?.clockInTime != null) {
       try {
-        final clockInTime = DateTime.parse(attendance!.clockInTime!).toLocal();
+        final cleanTime = attendance!.clockInTime!.replaceAll('Z', '').replaceAll('z', '');
+        final clockInTime = DateTime.parse(cleanTime);
         totalMins = DateTime.now().difference(clockInTime).inMinutes;
       } catch (_) {}
     }
