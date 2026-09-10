@@ -17,7 +17,51 @@ class ApiClient {
 
   final FlutterSecureStorage _storage = const FlutterSecureStorage();
   static const String _tokenKey = 'auth_token';
+  static const String _orgKey = 'active_org_id';
   static String? _authToken;
+  static String? _activeOrgId;
+
+  Future<String?> getActiveOrgId() async {
+    if (_activeOrgId != null) return _activeOrgId;
+    try {
+      _activeOrgId = await _storage.read(key: _orgKey);
+    } catch (_) {
+      _activeOrgId = null;
+    }
+    return _activeOrgId;
+  }
+
+  Future<void> setActiveOrgId(String? orgId) async {
+    _activeOrgId = orgId;
+    if (orgId != null && orgId.isNotEmpty) {
+      await _storage.write(key: _orgKey, value: orgId);
+    } else {
+      await _storage.delete(key: _orgKey);
+    }
+  }
+
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await getToken();
+    final orgId = await getActiveOrgId();
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
+    };
+    if (token != null && token.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $token';
+    }
+    if (orgId != null && orgId.isNotEmpty) {
+      headers['x-organization-id'] = orgId;
+    }
+    return headers;
+  }
+
+  Future<void> clearSession() async {
+    _authToken = null;
+    _activeOrgId = null;
+    await _storage.delete(key: _tokenKey);
+    await _storage.delete(key: _orgKey);
+  }
 
   String get baseUrl => AppConfig.apiBaseUrl;
 
@@ -32,18 +76,6 @@ class ApiClient {
       _authToken = null;
     }
     return _authToken;
-  }
-
-  Future<Map<String, String>> _getHeaders() async {
-    final token = await getToken();
-    final headers = <String, String>{
-      'Content-Type': 'application/json',
-      'Accept': 'application/json',
-    };
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-    return headers;
   }
 
   Future<void> saveToken(String token) async {
@@ -73,11 +105,21 @@ class ApiClient {
     return errorMessage;
   }
 
-  Future<http.Response> postRest(String path, Map<String, dynamic> body) async {
-    final url = Uri.parse('$baseUrl$path');
-    final headers = await _getHeaders();
-    final response = await http.post(url, headers: headers, body: jsonEncode(body));
-    return response;
+  Future<http.Response> postRest(
+    String endpoint,
+    Map<String, dynamic> body, {
+    Map<String, String>? headers,
+  }) async {
+    final requestHeaders = await _getHeaders();
+    if (headers != null) {
+      requestHeaders.addAll(headers);
+    }
+
+    return http.post(
+      Uri.parse('$baseUrl$endpoint'),
+      headers: requestHeaders,
+      body: jsonEncode(body),
+    );
   }
 
   Future<dynamic> postTrpc(String procedure, Map<String, dynamic> input) async {
@@ -112,11 +154,6 @@ class ApiClient {
     if (response.body.isEmpty) return null;
     final decoded = jsonDecode(response.body);
     return decoded['result']?['data']?['json'];
-  }
-
-  Future<void> clearSession() async {
-    _authToken = null;
-    await _storage.delete(key: _tokenKey);
   }
 
   Future<bool> hasSession() async {
