@@ -1,0 +1,35 @@
+workflows:
+  ios-debug:
+    name: iOS Debug Test
+
+    instance_type: mac_mini_m2
+    max_build_duration: 30
+
+    environment:
+      flutter: stable
+      xcode: latest
+      cocoapods: default
+
+    scripts:
+
+      - name: Get Flutter packages
+        script: |
+          flutter pub get
+
+      - name: Install CocoaPods
+        script: |
+          find . -name "Podfile" -execdir pod install \;
+
+      - name: Build iOS device app
+        script: |
+          flutter build ios --debug --no-codesign
+
+      - name: Create IPA
+        script: |
+          mkdir Payload
+          cp -R build/ios/iphoneos/Runner.app Payload/
+          zip -r NovaHR.ipa Payload
+
+    artifacts:
+      - NovaHR.ipa
+      - build/ios/iphoneos/**/*.app
