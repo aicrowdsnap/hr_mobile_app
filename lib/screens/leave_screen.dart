@@ -51,6 +51,16 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 
   void _showApplyDialog() {
+    if (_availableTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No leave types available. Leave requests are disabled.'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -94,14 +104,22 @@ class _LeaveScreenState extends State<LeaveScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final int totalRequests = _requests.length;
+    final int approvedCount = _requests.where((r) => r['status'] == 'approved').length;
+    final int pendingCount = _requests.where((r) => r['status'] == 'pending').length;
+    final bool hasNoLeaveTypes = _availableTypes.isEmpty;
+
     return Scaffold(
       backgroundColor: const Color(0xFF2A3036),
       appBar: AppBar(
         title: const Text('Leave Management'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.add_circle_outline_rounded),
-            onPressed: _showApplyDialog,
+            icon: Icon(
+              Icons.add_circle_outline_rounded,
+              color: hasNoLeaveTypes ? Colors.grey : const Color(0xFF90CA28),
+            ),
+            onPressed: hasNoLeaveTypes ? null : _showApplyDialog,
           ),
         ],
       ),
@@ -118,6 +136,104 @@ class _LeaveScreenState extends State<LeaveScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(20),
                     children: [
+                      Container(
+                        padding: const EdgeInsets.all(18),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF343A40),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.withValues(alpha: 0.15),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.access_time_rounded,
+                                      color: Colors.blue, size: 18),
+                                ),
+                                const SizedBox(width: 10),
+                                const Text(
+                                  'Quick Stats',
+                                  style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 16),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: _StatCard(
+                                    title: 'Total Requests',
+                                    count: '$totalRequests',
+                                    bgColor: Colors.blue.withValues(alpha: 0.08),
+                                    iconColor: Colors.blue,
+                                    icon: Icons.description_rounded,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _StatCard(
+                                    title: 'Approved',
+                                    count: '$approvedCount',
+                                    bgColor: Colors.green.withValues(alpha: 0.08),
+                                    iconColor: Colors.green,
+                                    icon: Icons.check_circle_rounded,
+                                  ),
+                                ),
+                                const SizedBox(width: 10),
+                                Expanded(
+                                  child: _StatCard(
+                                    title: 'Pending',
+                                    count: '$pendingCount',
+                                    bgColor: Colors.amber.withValues(alpha: 0.08),
+                                    iconColor: Colors.amber,
+                                    icon: Icons.schedule_rounded,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // No Leave Types Warning Banner
+                      if (hasNoLeaveTypes) ...[
+                        Container(
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                                color: Colors.orange.withValues(alpha: 0.3)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.warning_amber_rounded,
+                                  color: Colors.orange),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'You currently have no leave types or balances assigned. Leave request actions are disabled.',
+                                  style: TextStyle(
+                                      color: Colors.orange.shade200,
+                                      fontSize: 13),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+
                       const Text(
                         'Leave Balances',
                         style: TextStyle(
@@ -129,9 +245,12 @@ class _LeaveScreenState extends State<LeaveScreen> {
                       SizedBox(
                         height: 120,
                         child: _balances.isEmpty
-                            ? const Center(
-                                child: Text('No leave balances found',
-                                    style: TextStyle(color: Colors.grey)))
+                            ? Container(
+                                alignment: Alignment.centerLeft,
+                                child: const Text(
+                                    'No leave balances available',
+                                    style: TextStyle(color: Colors.grey)),
+                              )
                             : ListView.builder(
                                 scrollDirection: Axis.horizontal,
                                 itemCount: _balances.length,
@@ -145,7 +264,8 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                       color: const Color(0xFF343A40),
                                       borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
-                                          color: Colors.white.withValues(alpha: 0.1)),
+                                          color: Colors.white
+                                              .withValues(alpha: 0.1)),
                                     ),
                                     child: Column(
                                       crossAxisAlignment:
@@ -195,11 +315,17 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                 color: Colors.white),
                           ),
                           TextButton.icon(
-                            onPressed: _showApplyDialog,
-                            icon: const Icon(Icons.add,
-                                size: 16, color: Color(0xFF90CA28)),
-                            label: const Text('Apply Leave',
-                                style: TextStyle(color: Color(0xFF90CA28))),
+                            onPressed: hasNoLeaveTypes ? null : _showApplyDialog,
+                            icon: Icon(Icons.add,
+                                size: 16,
+                                color: hasNoLeaveTypes
+                                    ? Colors.grey
+                                    : const Color(0xFF90CA28)),
+                            label: Text('Apply Leave',
+                                style: TextStyle(
+                                    color: hasNoLeaveTypes
+                                        ? Colors.grey
+                                        : const Color(0xFF90CA28))),
                           ),
                         ],
                       ),
@@ -234,7 +360,9 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            req['leaveType'].toString().toUpperCase(),
+                                            req['leaveType']
+                                                .toString()
+                                                .toUpperCase(),
                                             style: const TextStyle(
                                                 fontWeight: FontWeight.bold,
                                                 color: Colors.white,
@@ -252,7 +380,8 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                             child: Text(
                                               status.toUpperCase(),
                                               style: TextStyle(
-                                                  color: _getStatusColor(status),
+                                                  color:
+                                                      _getStatusColor(status),
                                                   fontSize: 10,
                                                   fontWeight: FontWeight.bold),
                                             ),
@@ -296,6 +425,50 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 }
 
+class _StatCard extends StatelessWidget {
+  final String title;
+  final String count;
+  final Color bgColor;
+  final Color iconColor;
+  final IconData icon;
+
+  const _StatCard({
+    required this.title,
+    required this.count,
+    required this.bgColor,
+    required this.iconColor,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: bgColor,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, color: iconColor, size: 20),
+          const SizedBox(height: 10),
+          Text(
+            count,
+            style: const TextStyle(
+                fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            title,
+            style: TextStyle(color: Colors.grey.shade400, fontSize: 11),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _ApplyLeaveForm extends StatefulWidget {
   final List<dynamic> availableTypes;
   final List<dynamic> balances;
@@ -325,14 +498,6 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
     _initDefaultLeaveType();
   }
 
-  @override
-  void didUpdateWidget(_ApplyLeaveForm oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (_selectedLeaveType == null && widget.availableTypes.isNotEmpty) {
-      _initDefaultLeaveType();
-    }
-  }
-
   void _initDefaultLeaveType() {
     if (widget.availableTypes.isNotEmpty) {
       setState(() {
@@ -348,6 +513,13 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
   }
 
   Future<void> _submit() async {
+    if (widget.availableTypes.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cannot submit: No leave types assigned')),
+      );
+      return;
+    }
+
     if (_selectedLeaveType == null || _startDate == null || _endDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill all required fields')),
@@ -396,6 +568,8 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
 
   @override
   Widget build(BuildContext context) {
+    final bool hasNoTypes = widget.availableTypes.isEmpty;
+
     return SingleChildScrollView(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -407,7 +581,8 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
                 fontSize: 20, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 20),
-          const Text('Leave Type', style: TextStyle(color: Colors.grey, fontSize: 13)),
+          const Text('Leave Type',
+              style: TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _selectedLeaveType,
@@ -426,7 +601,9 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
                 child: Text(t['name'] ?? t['id']),
               );
             }).toList(),
-            onChanged: (val) => setState(() => _selectedLeaveType = val),
+            onChanged: hasNoTypes
+                ? null
+                : (val) => setState(() => _selectedLeaveType = val),
           ),
           const SizedBox(height: 16),
           Row(
@@ -439,7 +616,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
                         style: TextStyle(color: Colors.grey, fontSize: 13)),
                     const SizedBox(height: 6),
                     InkWell(
-                      onTap: () => _selectDate(true),
+                      onTap: hasNoTypes ? null : () => _selectDate(true),
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -466,7 +643,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
                         style: TextStyle(color: Colors.grey, fontSize: 13)),
                     const SizedBox(height: 6),
                     InkWell(
-                      onTap: () => _selectDate(false),
+                      onTap: hasNoTypes ? null : () => _selectDate(false),
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
@@ -499,6 +676,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
           TextField(
             controller: _reasonController,
             maxLines: 3,
+            enabled: !hasNoTypes,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Reason for leave...',
@@ -515,19 +693,22 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
             width: double.infinity,
             height: 50,
             child: ElevatedButton(
-              onPressed: _submitting ? null : _submit,
+              onPressed: _submitting || hasNoTypes ? null : _submit,
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF90CA28),
+                disabledBackgroundColor: Colors.grey.shade700,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),
               child: _submitting
                   ? const CircularProgressIndicator(color: Colors.white)
-                  : const Text('Submit Request',
-                      style: TextStyle(
+                  : Text(
+                      hasNoTypes ? 'No Leave Types Available' : 'Submit Request',
+                      style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white)),
+                          color: Colors.white),
+                    ),
             ),
           ),
           const SizedBox(height: 30),

@@ -222,8 +222,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   Widget build(BuildContext context) {
     final isClockedIn = _attendance?.isClockedIn ?? false;
     final hasCompletedToday = !isClockedIn && _todayRecord != null && _todayRecord!['clockOutTime'] != null;
-    final displayClockIn = isClockedIn ? _attendance?.clockInTime : _todayRecord?['clockInTime']?.toString();
-    final displayClockOut = isClockedIn ? _attendance?.clockOutTime : _todayRecord?['clockOutTime']?.toString();
+    
+    final displayClockIn = isClockedIn 
+        ? _attendance?.clockInTime 
+        : (_attendance?.clockInTime ?? _todayRecord?['clockInTime']?.toString());
+        
+    final displayClockOut = isClockedIn 
+        ? _attendance?.clockOutTime 
+        : (_attendance?.clockOutTime ?? _todayRecord?['clockOutTime']?.toString());
 
     final bool canClockIn = _shifts.isNotEmpty;
 
