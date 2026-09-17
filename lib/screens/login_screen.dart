@@ -1,6 +1,8 @@
+// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
+import '../theme/app_colors.dart';
 import 'force_password_change_screen.dart';
 import 'home_screen.dart';
 
@@ -84,10 +86,10 @@ class _LoginScreenState extends State<LoginScreen> {
       prefixIcon: Icon(icon, color: Colors.grey.shade500),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: const Color(0xFF2A3036),
+      fillColor: AppColors.darkBlue,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade800)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF90CA28), width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.brightCyan, width: 1.5)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
     );
@@ -96,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -109,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     'assets/images/logo.png',
                     height: 70,
                     errorBuilder: (context, error, stackTrace) => 
-                      const Icon(Icons.business, size: 70, color: Color(0xFF90CA28)),
+                      const Icon(Icons.business, size: 70, color: AppColors.brightCyan),
                   ),
                   const SizedBox(height: 12),
                   Text('Employee Attendance', style: TextStyle(fontSize: 15, color: Colors.grey.shade400)),
@@ -117,7 +119,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF343A40),
+                      color: AppColors.darkPurple,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
@@ -168,12 +170,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _login,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF90CA28), // Company Green
-                                foregroundColor: Colors.white,
+                                backgroundColor: AppColors.brightCyan,
+                                foregroundColor: AppColors.darkBlue,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
                               child: _isLoading
-                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: AppColors.darkBlue, strokeWidth: 2))
                                   : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),

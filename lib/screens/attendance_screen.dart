@@ -1,8 +1,10 @@
+// lib/screens/attendance_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/attendance_status.dart';
 import '../services/attendance_service.dart';
+import '../theme/app_colors.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -39,7 +41,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final slNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
       final todayStr = DateFormat('yyyy-MM-dd').format(slNow);
 
-      // Fetch the full month range (aligned to Sri Lanka time) just like MyCalendarScreen
       final startDate = DateTime.utc(slNow.year, slNow.month, 1).subtract(const Duration(hours: 5, minutes: 30));
       final endDate = DateTime.utc(slNow.year, slNow.month + 1, 1).subtract(const Duration(hours: 5, minutes: 30));
 
@@ -58,7 +59,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
       final history = results[0] as List<dynamic>;
       final rawShifts = results[1] as List<dynamic>;
 
-      // Map shifts by local date string to safely handle timestamp offsets
       final shiftsMap = <String, dynamic>{};
       for (var s in rawShifts) {
         if (s['shiftDate'] != null) {
@@ -68,7 +68,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         }
       }
 
-      // Extract today's shift from the map
       final todayShiftItem = shiftsMap[todayStr];
       final shiftsList = todayShiftItem != null ? [todayShiftItem] : [];
 
@@ -132,7 +131,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     setState(() => _actionLoading = true);
     try {
       if (clockIn) {
-        // FIX: shiftId MUST be passed because backend Zod schema strictly requires it
         await _attendanceService.clockIn(shiftId: _selectedShiftId);
       } else {
         await _attendanceService.clockOut();
@@ -143,7 +141,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           content: Text(clockIn ? 'Clock-in successful' : 'Clock-out successful', style: const TextStyle(color: Colors.white)),
-          backgroundColor: const Color(0xFF90CA28),
+          backgroundColor: AppColors.brightCyan,
           behavior: SnackBarBehavior.floating, 
           margin: const EdgeInsets.all(16),
         ));
@@ -162,7 +160,6 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
             final now = DateTime.now();
             final utcDate = DateTime.parse('${now.toString().split(' ')[0]} $utcTimeStr');
             
-            // Add 5 hours and 30 minutes (Sri Lanka offset) to correct the error message
             final localDate = utcDate.add(const Duration(hours: 5, minutes: 30));
             final localTimeStr = DateFormat('HH:mm:ss').format(localDate);
             
@@ -234,7 +231,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final bool canClockIn = _shifts.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       appBar: AppBar(title: const Text('Mark Attendance')),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -243,20 +240,20 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: const Color(0xFF343A40), borderRadius: BorderRadius.circular(24)),
+              decoration: BoxDecoration(color: AppColors.darkPurple, borderRadius: BorderRadius.circular(24)),
               child: Column(
                 children: [
                   Container(
                     width: 90, height: 90,
                     decoration: BoxDecoration(
                       color: hasCompletedToday ? Colors.teal.withValues(alpha: 0.15) 
-                           : isClockedIn ? const Color(0xFF90CA28).withValues(alpha: 0.15) 
+                           : isClockedIn ? AppColors.brightCyan.withValues(alpha: 0.15) 
                            : Colors.blue.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       hasCompletedToday ? Icons.check_circle_rounded : isClockedIn ? Icons.how_to_reg_rounded : Icons.access_time_rounded,
-                      size: 48, color: hasCompletedToday ? Colors.teal : isClockedIn ? const Color(0xFF90CA28) : Colors.blue,
+                      size: 48, color: hasCompletedToday ? Colors.teal : isClockedIn ? AppColors.brightCyan : Colors.blue,
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -295,7 +292,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       )
                     else
                       Theme(
-                        data: Theme.of(context).copyWith(canvasColor: const Color(0xFF343A40)),
+                        data: Theme.of(context).copyWith(canvasColor: AppColors.darkPurple),
                         child: DropdownButtonFormField<String>(
                           value: _selectedShiftId,
                           style: const TextStyle(color: Colors.white),
@@ -318,7 +315,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  if (_loading) const CircularProgressIndicator(color: Color(0xFF90CA28))
+                  if (_loading) const CircularProgressIndicator(color: AppColors.brightCyan)
                   else if (_error != null)
                     Column(
                       children: [
@@ -335,14 +332,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF1E2328),
+                          color: AppColors.darkMagenta,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text('Active Worked Time:', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-                            Text(_formatWorkingHours(), style: const TextStyle(color: Color(0xFF90CA28), fontSize: 15, fontWeight: FontWeight.bold)),
+                            Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.brightCyan, fontSize: 15, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -354,13 +351,12 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     SizedBox(
                       width: double.infinity, height: 56,
                       child: ElevatedButton.icon(
-                        // Disabled if loading, or if trying to clock in when no shifts are assigned
                         onPressed: _actionLoading || (!isClockedIn && !canClockIn) ? null : isClockedIn ? _clockOut : _clockIn,
                         icon: _actionLoading ? const SizedBox(width: 21, height: 21, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                             : Icon(isClockedIn ? Icons.logout_rounded : Icons.login_rounded),
                         label: Text(_actionLoading ? 'Processing...' : isClockedIn ? 'Clock Out' : 'Clock In', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isClockedIn ? Colors.red.shade600 : const Color(0xFF90CA28),
+                          backgroundColor: isClockedIn ? Colors.red.shade600 : AppColors.brightCyan,
                           disabledBackgroundColor: Colors.grey.shade700,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
@@ -400,7 +396,7 @@ class _TimeBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: const Color(0xFF1E2328), borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: AppColors.darkMagenta, borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
           Icon(icon, color: Colors.blue.shade400),

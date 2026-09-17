@@ -1,8 +1,10 @@
+// lib/screens/my_calendar_screen.dart
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
 
 import '../services/attendance_service.dart';
+import '../theme/app_colors.dart';
 
 class MyCalendarScreen extends StatefulWidget {
   const MyCalendarScreen({super.key});
@@ -72,7 +74,6 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
       final newShiftsMap = <String, dynamic>{};
       for (var s in results[2]) {
         if (s['shiftDate'] != null) {
-          // FIX: Convert UTC shiftDate to local SL date for map key
           final localDate = DateTime.parse(s['shiftDate']).toLocal();
           final dateStr = DateFormat('yyyy-MM-dd').format(localDate);
           newShiftsMap[dateStr] = s['shift'];
@@ -108,12 +109,12 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
     final dayAttendance = _attendanceMap[selectedKey];
 
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       appBar: AppBar(title: const Text('My Schedule & History')),
       body: Column(
         children: [
           Container(
-            color: const Color(0xFF343A40),
+            color: AppColors.darkPurple,
             child: TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
@@ -128,12 +129,12 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
                   final key = _dateKey(date);
                   final markers = <Widget>[];
                   if (_holidaysMap.containsKey(key)) markers.add(_buildMarker(Colors.amber));
-                  if (_shiftsMap.containsKey(key)) markers.add(_buildMarker(Colors.blue));
+                  if (_shiftsMap.containsKey(key)) markers.add(_buildMarker(AppColors.skyBlue));
                   if (_attendanceMap.containsKey(key)) {
                     final status = _attendanceMap[key]['status'];
-                    if (status == 'present') markers.add(_buildMarker(const Color(0xFF90CA28)));
+                    if (status == 'present') markers.add(_buildMarker(AppColors.brightCyan));
                     else if (status == 'absent') markers.add(_buildMarker(Colors.red));
-                    else if (status == 'on_leave') markers.add(_buildMarker(Colors.purple));
+                    else if (status == 'on_leave') markers.add(_buildMarker(AppColors.purple));
                   }
                   if (markers.isEmpty) return const SizedBox();
                   return Positioned(bottom: 6, child: Row(mainAxisSize: MainAxisSize.min, children: markers));
@@ -154,15 +155,15 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
                 defaultTextStyle: TextStyle(color: Colors.white),
                 weekendTextStyle: TextStyle(color: Colors.white70),
                 outsideTextStyle: TextStyle(color: Colors.white30),
-                todayDecoration: BoxDecoration(color: Color(0xFF1E2328), shape: BoxShape.circle),
+                todayDecoration: BoxDecoration(color: AppColors.darkMagenta, shape: BoxShape.circle),
                 todayTextStyle: TextStyle(color: Colors.white),
-                selectedDecoration: BoxDecoration(color: Color(0xFF90CA28), shape: BoxShape.circle),
-                selectedTextStyle: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                selectedDecoration: BoxDecoration(color: AppColors.brightCyan, shape: BoxShape.circle),
+                selectedTextStyle: TextStyle(color: AppColors.darkBlue, fontWeight: FontWeight.bold),
               ),
             ),
           ),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator(color: Color(0xFF90CA28))))
+            const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.brightCyan)))
           else
             Expanded(
               child: ListView(
@@ -176,11 +177,11 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
                   if (dayHoliday != null)
                     _DetailCard(icon: Icons.celebration, iconColor: Colors.amber, title: 'Holiday: ${dayHoliday['name']}', subtitle: dayHoliday['description'] ?? 'Company Holiday', bgColor: Colors.amber.withValues(alpha: 0.1)),
                   if (dayShift != null)
-                    _DetailCard(icon: Icons.work_history_rounded, iconColor: Colors.blue, title: 'Assigned Shift: ${dayShift['name']}', subtitle: '${dayShift['startTime']} - ${dayShift['endTime']}', bgColor: Colors.blue.withValues(alpha: 0.1))
+                    _DetailCard(icon: Icons.work_history_rounded, iconColor: AppColors.skyBlue, title: 'Assigned Shift: ${dayShift['name']}', subtitle: '${dayShift['startTime']} - ${dayShift['endTime']}', bgColor: AppColors.skyBlue.withValues(alpha: 0.1))
                   else if (dayHoliday == null)
-                    _DetailCard(icon: Icons.bedtime_rounded, iconColor: Colors.grey.shade400, title: 'No Shift Assigned', subtitle: 'Rest day or pending assignment', bgColor: const Color(0xFF343A40)),
+                    _DetailCard(icon: Icons.bedtime_rounded, iconColor: Colors.grey.shade400, title: 'No Shift Assigned', subtitle: 'Rest day or pending assignment', bgColor: AppColors.darkPurple),
                   if (dayAttendance != null)
-                    _DetailCard(icon: _getAttendanceIcon(dayAttendance['status']), iconColor: _getAttendanceColor(dayAttendance['status']), title: 'Attendance: ${_formatStatus(dayAttendance['status'])}', subtitle: dayAttendance['notes'] ?? 'Record logged', bgColor: const Color(0xFF343A40)),
+                    _DetailCard(icon: _getAttendanceIcon(dayAttendance['status']), iconColor: _getAttendanceColor(dayAttendance['status']), title: 'Attendance: ${_formatStatus(dayAttendance['status'])}', subtitle: dayAttendance['notes'] ?? 'Record logged', bgColor: AppColors.darkPurple),
                 ],
               ),
             ),
@@ -200,9 +201,9 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
 
   Color _getAttendanceColor(String status) {
     switch (status) {
-      case 'present': return const Color(0xFF90CA28);
+      case 'present': return AppColors.brightCyan;
       case 'absent': return Colors.red;
-      case 'on_leave': return Colors.purple;
+      case 'on_leave': return AppColors.purple;
       default: return Colors.grey;
     }
   }
@@ -225,7 +226,7 @@ class _DetailCard extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(color: Color(0xFF1E2328), shape: BoxShape.circle),
+            decoration: const BoxDecoration(color: AppColors.darkMagenta, shape: BoxShape.circle),
             child: Icon(icon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 16),

@@ -1,5 +1,7 @@
+// lib/screens/force_password_change_screen.dart
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../theme/app_colors.dart';
 import 'home_screen.dart';
 
 class ForcePasswordChangeScreen extends StatefulWidget {
@@ -90,10 +92,10 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
         icon: Icon(isHidden ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade500),
       ),
       filled: true,
-      fillColor: const Color(0xFF2A3036),
+      fillColor: AppColors.darkBlue,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
       enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade800)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Color(0xFF90CA28), width: 1.5)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.brightCyan, width: 1.5)),
       errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
     );
@@ -102,7 +104,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -111,12 +113,12 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
               constraints: const BoxConstraints(maxWidth: 450),
               child: Column(
                 children: [
-                  const Icon(Icons.security, size: 70, color: Color(0xFF90CA28)),
+                  const Icon(Icons.security, size: 70, color: AppColors.brightCyan),
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF343A40),
+                      color: AppColors.darkPurple,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
                         BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
@@ -135,7 +137,6 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                           ),
                           const SizedBox(height: 24),
                           
-                          // Current Password
                           TextFormField(
                             controller: _currentPasswordController,
                             obscureText: _hideCurrent,
@@ -150,7 +151,6 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // New Password
                           TextFormField(
                             controller: _newPasswordController,
                             obscureText: _hideNew,
@@ -166,7 +166,6 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                           ),
                           const SizedBox(height: 15),
 
-                          // Confirm Password
                           TextFormField(
                             controller: _confirmPasswordController,
                             obscureText: _hideConfirm,
@@ -190,8 +189,8 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _updatePassword,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: const Color(0xFF90CA28),
-                                foregroundColor: Colors.white,
+                                backgroundColor: AppColors.brightCyan,
+                                foregroundColor: AppColors.darkBlue,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
                               child: _isLoading

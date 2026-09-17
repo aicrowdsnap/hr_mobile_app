@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
+import 'theme/app_colors.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -21,11 +22,11 @@ class NovaHrApp extends StatelessWidget {
         useMaterial3: true,
         fontFamily: 'Roboto',
         colorScheme: ColorScheme.fromSeed(
-          seedColor: const Color(0xFF90CA28), // Company Green
+          seedColor: AppColors.brightCyan,
           brightness: Brightness.dark,
-          surface: const Color(0xFF343A40),
+          surface: AppColors.darkPurple,
         ),
-        scaffoldBackgroundColor: const Color(0xFF2A3036), // Dark Slate Background
+        scaffoldBackgroundColor: AppColors.darkBlue,
         appBarTheme: const AppBarTheme(
           backgroundColor: Colors.transparent,
           elevation: 0,
@@ -111,7 +112,7 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -122,7 +123,7 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
                 'assets/images/logo.png',
                 height: 80,
                 errorBuilder: (context, error, stackTrace) => 
-                  const Icon(Icons.business, size: 80, color: Color(0xFF90CA28)),
+                  const Icon(Icons.business, size: 80, color: AppColors.brightCyan),
               ),
             ),
             const SizedBox(height: 30),
@@ -131,7 +132,7 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
             const SizedBox(
               width: 25,
               height: 25,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF90CA28)),
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brightCyan),
             ),
           ],
         ),

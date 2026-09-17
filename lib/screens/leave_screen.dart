@@ -1,7 +1,9 @@
+// lib/screens/leave_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../services/leave_service.dart';
+import '../theme/app_colors.dart';
 
 class LeaveScreen extends StatefulWidget {
   const LeaveScreen({super.key});
@@ -64,7 +66,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: const Color(0xFF343A40),
+      backgroundColor: AppColors.darkPurple,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -110,14 +112,14 @@ class _LeaveScreenState extends State<LeaveScreen> {
     final bool hasNoLeaveTypes = _availableTypes.isEmpty;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       appBar: AppBar(
         title: const Text('Leave Management'),
         actions: [
           IconButton(
             icon: Icon(
               Icons.add_circle_outline_rounded,
-              color: hasNoLeaveTypes ? Colors.grey : const Color(0xFF90CA28),
+              color: hasNoLeaveTypes ? Colors.grey : AppColors.brightCyan,
             ),
             onPressed: hasNoLeaveTypes ? null : _showApplyDialog,
           ),
@@ -125,7 +127,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
       ),
       body: _loading
           ? const Center(
-              child: CircularProgressIndicator(color: Color(0xFF90CA28)),
+              child: CircularProgressIndicator(color: AppColors.brightCyan),
             )
           : _error != null
               ? Center(
@@ -139,7 +141,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                       Container(
                         padding: const EdgeInsets.all(18),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF343A40),
+                          color: AppColors.darkPurple,
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Column(
@@ -150,11 +152,11 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                 Container(
                                   padding: const EdgeInsets.all(8),
                                   decoration: BoxDecoration(
-                                    color: Colors.blue.withValues(alpha: 0.15),
+                                    color: AppColors.skyBlue.withValues(alpha: 0.15),
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(Icons.access_time_rounded,
-                                      color: Colors.blue, size: 18),
+                                      color: AppColors.skyBlue, size: 18),
                                 ),
                                 const SizedBox(width: 10),
                                 const Text(
@@ -173,8 +175,8 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                   child: _StatCard(
                                     title: 'Total Requests',
                                     count: '$totalRequests',
-                                    bgColor: Colors.blue.withValues(alpha: 0.08),
-                                    iconColor: Colors.blue,
+                                    bgColor: AppColors.skyBlue.withValues(alpha: 0.08),
+                                    iconColor: AppColors.skyBlue,
                                     icon: Icons.description_rounded,
                                   ),
                                 ),
@@ -205,7 +207,6 @@ class _LeaveScreenState extends State<LeaveScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // No Leave Types Warning Banner
                       if (hasNoLeaveTypes) ...[
                         Container(
                           padding: const EdgeInsets.all(16),
@@ -261,7 +262,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                     margin: const EdgeInsets.only(right: 12),
                                     padding: const EdgeInsets.all(14),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFF343A40),
+                                      color: AppColors.darkPurple,
                                       borderRadius: BorderRadius.circular(16),
                                       border: Border.all(
                                           color: Colors.white
@@ -286,7 +287,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                         Text(
                                           '${b['remaining']}',
                                           style: const TextStyle(
-                                              color: Color(0xFF90CA28),
+                                              color: AppColors.brightCyan,
                                               fontSize: 22,
                                               fontWeight: FontWeight.bold),
                                         ),
@@ -320,12 +321,12 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                 size: 16,
                                 color: hasNoLeaveTypes
                                     ? Colors.grey
-                                    : const Color(0xFF90CA28)),
+                                    : AppColors.brightCyan),
                             label: Text('Apply Leave',
                                 style: TextStyle(
                                     color: hasNoLeaveTypes
                                         ? Colors.grey
-                                        : const Color(0xFF90CA28))),
+                                        : AppColors.brightCyan)),
                           ),
                         ],
                       ),
@@ -348,7 +349,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                   margin: const EdgeInsets.only(bottom: 12),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF343A40),
+                                    color: AppColors.darkPurple,
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Column(
@@ -586,11 +587,11 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
           const SizedBox(height: 6),
           DropdownButtonFormField<String>(
             value: _selectedLeaveType,
-            dropdownColor: const Color(0xFF343A40),
+            dropdownColor: AppColors.darkPurple,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               filled: true,
-              fillColor: const Color(0xFF2A3036),
+              fillColor: AppColors.darkBlue,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none),
@@ -620,7 +621,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A3036),
+                          color: AppColors.darkBlue,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -647,7 +648,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
                       child: Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF2A3036),
+                          color: AppColors.darkBlue,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: Text(
@@ -667,7 +668,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
             const SizedBox(height: 12),
             Text('Total Days: $_calculatedDays',
                 style: const TextStyle(
-                    color: Color(0xFF90CA28), fontWeight: FontWeight.bold)),
+                    color: AppColors.brightCyan, fontWeight: FontWeight.bold)),
           ],
           const SizedBox(height: 16),
           const Text('Reason (Optional)',
@@ -682,7 +683,7 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
               hintText: 'Reason for leave...',
               hintStyle: const TextStyle(color: Colors.grey),
               filled: true,
-              fillColor: const Color(0xFF2A3036),
+              fillColor: AppColors.darkBlue,
               border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                   borderSide: BorderSide.none),
@@ -695,7 +696,8 @@ class _ApplyLeaveFormState extends State<_ApplyLeaveForm> {
             child: ElevatedButton(
               onPressed: _submitting || hasNoTypes ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF90CA28),
+                backgroundColor: AppColors.brightCyan,
+                foregroundColor: AppColors.darkBlue,
                 disabledBackgroundColor: Colors.grey.shade700,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),

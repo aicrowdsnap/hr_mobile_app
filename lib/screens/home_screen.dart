@@ -1,9 +1,11 @@
+// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../models/attendance_status.dart';
 import '../services/attendance_service.dart';
 import '../services/auth_service.dart';
+import '../theme/app_colors.dart';
 import 'attendance_screen.dart';
 import 'login_screen.dart';
 import 'my_calendar_screen.dart';
@@ -107,17 +109,17 @@ class _HomeScreenState extends State<HomeScreen> {
         final status = _employeeProfile?['status'] ?? 'Active';
 
         return AlertDialog(
-          backgroundColor: const Color(0xFF343A40),
+          backgroundColor: AppColors.darkPurple,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF90CA28).withValues(alpha: 0.15),
+                  color: AppColors.brightCyan.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person_rounded, color: Color(0xFF90CA28)),
+                child: const Icon(Icons.person_rounded, color: AppColors.brightCyan),
               ),
               const SizedBox(width: 12),
               const Text('User Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
@@ -141,7 +143,7 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF90CA28))),
+              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.brightCyan)),
             ),
           ],
         );
@@ -157,7 +159,7 @@ class _HomeScreenState extends State<HomeScreen> {
     final department = _employeeProfile?['department']?.toString().replaceAll('_', ' ') ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFF2A3036),
+      backgroundColor: AppColors.darkBlue,
       appBar: AppBar(
         title: Image.asset('assets/images/logo.png', height: 26, errorBuilder: (c, e, s) => const Text('NovaHR')),
         actions: [
@@ -173,7 +175,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF343A40),
+                color: AppColors.darkPurple,
                 borderRadius: BorderRadius.circular(20),
                 boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))],
               ),
@@ -183,13 +185,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 55,
                     height: 55,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF90CA28).withValues(alpha: 0.15),
+                      color: AppColors.brightCyan.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
                         employeeName.isNotEmpty ? employeeName[0].toUpperCase() : 'E',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF90CA28)),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.brightCyan),
                       ),
                     ),
                   ),
@@ -204,7 +206,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 3),
                         Text(
                           '${designation.toUpperCase()}${department.isNotEmpty ? ' • ${department.toUpperCase()}' : ''}',
-                          style: const TextStyle(color: Color(0xFF90CA28), fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(color: AppColors.brightCyan, fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -216,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Dashboard Overview', style: TextStyle(color: Colors.grey.shade400, fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             if (_loading)
-              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: Color(0xFF90CA28))))
+              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: AppColors.brightCyan)))
             else if (_error != null)
               _ErrorCard(message: _error!, onRetry: _loadDashboardData)
             else
@@ -224,7 +226,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 20),
             _QuickActionCard(
               icon: Icons.fingerprint_rounded,
-              iconColor: const Color(0xFF90CA28),
+              iconColor: AppColors.brightCyan,
               title: 'Mark Attendance',
               subtitle: 'Clock in or clock out for your shift',
               onTap: () async { await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AttendanceScreen())); _loadDashboardData(); },
@@ -232,7 +234,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 14),
             _QuickActionCard(
               icon: Icons.calendar_month_rounded,
-              iconColor: Colors.blue.shade400,
+              iconColor: AppColors.skyBlue,
               title: 'My Schedule & History',
               subtitle: 'View shifts, holidays, and past records',
               onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const MyCalendarScreen())),
@@ -317,22 +319,22 @@ class AttendanceStatusCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF1E2328),
+        color: AppColors.darkMagenta,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isIn ? const Color(0xFF90CA28).withValues(alpha: 0.5) : Colors.transparent),
+        border: Border.all(color: isIn ? AppColors.brightCyan.withValues(alpha: 0.5) : Colors.transparent),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.access_time_filled, color: isIn ? const Color(0xFF90CA28) : Colors.grey.shade500),
+              Icon(Icons.access_time_filled, color: isIn ? AppColors.brightCyan : Colors.grey.shade500),
               const SizedBox(width: 10),
               const Expanded(child: Text("Today's Attendance", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: isIn ? const Color(0xFF90CA28) : Colors.grey.shade600, borderRadius: BorderRadius.circular(30)),
-                child: Text(isIn ? 'CLOCKED IN' : 'CLOCKED OUT', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(color: isIn ? AppColors.brightCyan : Colors.grey.shade600, borderRadius: BorderRadius.circular(30)),
+                child: Text(isIn ? 'CLOCKED IN' : 'CLOCKED OUT', style: TextStyle(color: isIn ? AppColors.darkBlue : Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -350,7 +352,7 @@ class AttendanceStatusCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Total Worked Time:', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-              Text(_formatWorkingHours(), style: const TextStyle(color: Color(0xFF90CA28), fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.brightCyan, fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
         ],
@@ -386,7 +388,7 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: const Color(0xFF343A40),
+      color: AppColors.darkPurple,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -438,7 +440,7 @@ class _ErrorCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(message, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
           const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: Color(0xFF90CA28)))),
+          TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: AppColors.brightCyan))),
         ],
       ),
     );
