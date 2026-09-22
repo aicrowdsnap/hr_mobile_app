@@ -219,6 +219,35 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final isClockedIn = _attendance?.isClockedIn ?? false;
     final hasCompletedToday = !isClockedIn && _todayRecord != null && _todayRecord!['clockOutTime'] != null;
+    final hasShiftAssigned = _shifts.isNotEmpty;
+
+    // Define UI dynamic headers
+    IconData statusIcon = Icons.access_time_rounded;
+    Color statusColor = AppColors.info;
+    String mainTitle = 'You are not clocked in';
+    String subTitle = 'Select your shift and clock in to start.';
+
+    if (hasCompletedToday) {
+      statusIcon = Icons.check_circle_rounded;
+      statusColor = AppColors.success;
+      mainTitle = 'Shift Completed';
+      subTitle = 'You have already completed your shift for today.';
+    } else if (isClockedIn) {
+      statusIcon = Icons.how_to_reg_rounded;
+      statusColor = AppColors.primaryCyan;
+      mainTitle = 'You are currently clocked in';
+      subTitle = 'Your attendance is active for today.';
+    } else if (!hasShiftAssigned) {
+      statusIcon = Icons.event_busy_rounded;
+      statusColor = isDark ? AppColors.darkIcon : AppColors.lightIcon;
+      mainTitle = 'No Shift Assigned';
+      subTitle = 'You do not have a shift scheduled for today.';
+    } else {
+      statusIcon = Icons.schedule_rounded;
+      statusColor = Colors.orange;
+      mainTitle = 'Action Required';
+      subTitle = 'Select your shift and clock in to start.';
+    }
     
     final displayClockIn = isClockedIn 
         ? _attendance?.clockInTime 

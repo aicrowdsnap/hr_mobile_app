@@ -1,55 +1,96 @@
 import 'package:flutter/material.dart';
-
 import '../models/attendance_status.dart';
+import '../theme/app_colors.dart';
 
 class AttendanceStatusCard extends StatelessWidget {
   final AttendanceStatus? attendance;
+  final bool hasShiftAssigned;
+  final bool hasCompletedToday;
 
   const AttendanceStatusCard({
     super.key,
     required this.attendance,
+    required this.hasShiftAssigned,
+    required this.hasCompletedToday,
   });
 
   String _formatTime(String? value) {
-    if (value == null || value.trim().isEmpty) {
-      return '--';
-    }
-
+    if (value == null || value.trim().isEmpty) return '--';
     try {
-      DateTime dateTime = DateTime.parse(value).toLocal();
-
-      final hour = dateTime.hour == 0
-          ? 12
-          : dateTime.hour > 12
-              ? dateTime.hour - 12
-              : dateTime.hour;
-
+      final cleanValue = value.replaceAll('Z', '').replaceAll('z', '');
+      DateTime dateTime = DateTime.parse(cleanValue).toLocal();
+      final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';
-
       return '$hour:$minute $period';
     } catch (_) {
       return value;
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+  String _formatWorkingHours() {
+    int totalMins = attendance?.totalWorkingMinutes ?? 0;
     final isClockedIn = attendance?.isClockedIn ?? false;
 
+    if (isClockedIn && attendance?.clockInTime != null) {
+      try {
+        final cleanTime = attendance!.clockInTime!.replaceAll('Z', '').replaceAll('z', '');
+        final clockInTime = DateTime.parse(cleanTime).toLocal();
+        totalMins = DateTime.now().difference(clockInTime).inMinutes;
+      } catch (_) {}
+    }
+
+    if (totalMins <= 0) return '--';
+    final hours = totalMins ~/ 60;
+    final mins = totalMins % 60;
+    if (hours == 0) return '${mins}m';
+    return '${hours}h ${mins}m';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isClockedIn = attendance?.isClockedIn ?? false;
+
+    // Determine UI Configuration based on exact state
+    Color cardColor;
+    Color iconColor;
+    IconData statusIcon;
+    String statusTitle;
+    String statusBadge;
+
+    if (hasCompletedToday) {
+      cardColor = AppColors.success;
+      iconColor = AppColors.success;
+      statusIcon = Icons.task_alt_rounded;
+      statusTitle = "Shift Completed";
+      statusBadge = "COMPLETED";
+    } else if (isClockedIn) {
+      cardColor = AppColors.primaryCyan;
+      iconColor = AppColors.primaryCyan;
+      statusIcon = Icons.access_time_filled;
+      statusTitle = "Active Shift";
+      statusBadge = "CLOCKED IN";
+    } else if (hasShiftAssigned) {
+      cardColor = Colors.orange;
+      iconColor = Colors.orange;
+      statusIcon = Icons.schedule_rounded;
+      statusTitle = "Pending Clock In";
+      statusBadge = "ACTION REQUIRED";
+    } else {
+      cardColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+      iconColor = isDark ? AppColors.darkIcon : AppColors.lightIcon;
+      statusIcon = Icons.event_busy_rounded;
+      statusTitle = "No Shift Assigned";
+      statusBadge = "OFF";
+    }
+
     return Container(
-      width: double.infinity,
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: const Color(0xFF343A40),
-        borderRadius: BorderRadius.circular(22),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
-          ),
-        ],
+        color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: cardColor.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -57,159 +98,105 @@ class AttendanceStatusCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                width: 52,
-                height: 52,
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: isClockedIn
-                      ? const Color(0xFF90CA28).withValues(alpha: 0.15)
-                      : Colors.orange.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(15),
+                  color: iconColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
                 ),
-                child: Icon(
-                  isClockedIn ? Icons.login_rounded : Icons.schedule_rounded,
-                  color: isClockedIn ? const Color(0xFF90CA28) : Colors.orange,
-                  size: 28,
-                ),
+                child: Icon(statusIcon, color: iconColor),
               ),
-              const SizedBox(width: 15),
+              const SizedBox(width: 10),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Today',
-                      style: TextStyle(
-                        color: Colors.grey.shade400,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      isClockedIn ? 'Clocked In' : 'Not Clocked In',
-                      style: const TextStyle(
-                        fontSize: 19,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                  ],
+                child: Text(
+                  statusTitle,
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 7,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                 decoration: BoxDecoration(
-                  color: isClockedIn
-                      ? const Color(0xFF90CA28).withValues(alpha: 0.2)
-                      : Colors.grey.withValues(alpha: 0.2),
+                  color: cardColor,
                   borderRadius: BorderRadius.circular(30),
                 ),
                 child: Text(
-                  isClockedIn ? 'ACTIVE' : 'OFF',
+                  statusBadge,
                   style: TextStyle(
-                    color: isClockedIn ? const Color(0xFF90CA28) : Colors.grey.shade300,
-                    fontSize: 11,
+                    color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                    fontSize: 10,
                     fontWeight: FontWeight.bold,
                   ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 25),
+          const SizedBox(height: 22),
           Row(
             children: [
               Expanded(
-                child: _TimeItem(
-                  icon: Icons.login,
+                child: _HomeTime(
                   title: 'Clock In',
-                  value: _formatTime(attendance?.clockInTime),
+                  time: _formatTime(attendance?.clockInTime),
+                  isDark: isDark,
                 ),
               ),
-              Container(
-                height: 55,
-                width: 1,
-                color: Colors.grey.shade700,
-              ),
               Expanded(
-                child: _TimeItem(
-                  icon: Icons.logout,
+                child: _HomeTime(
                   title: 'Clock Out',
-                  value: _formatTime(attendance?.clockOutTime),
+                  time: _formatTime(attendance?.clockOutTime),
+                  isDark: isDark,
                 ),
               ),
             ],
           ),
-          if (attendance?.location != null) ...[
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Icon(
-                  Icons.location_on_outlined,
-                  size: 19,
-                  color: Colors.grey.shade400,
+          const SizedBox(height: 15),
+          Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                isClockedIn ? 'Active Worked Time:' : 'Total Worked Time:',
+                style: TextStyle(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  fontSize: 13,
                 ),
-                const SizedBox(width: 7),
-                Expanded(
-                  child: Text(
-                    attendance!.location!,
-                    style: TextStyle(
-                      color: Colors.grey.shade300,
-                      fontSize: 13,
-                    ),
-                  ),
+              ),
+              Text(
+                _formatWorkingHours(),
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ],
       ),
     );
   }
 }
 
-class _TimeItem extends StatelessWidget {
-  final IconData icon;
+class _HomeTime extends StatelessWidget {
   final String title;
-  final String value;
+  final String time;
+  final bool isDark;
 
-  const _TimeItem({
-    required this.icon,
-    required this.title,
-    required this.value,
-  });
+  const _HomeTime({required this.title, required this.time, required this.isDark});
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: Column(
-        children: [
-          Icon(
-            icon,
-            size: 21,
-            color: Colors.blue.shade400,
-          ),
-          const SizedBox(height: 7),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 12,
-              color: Colors.grey.shade400,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: Colors.white,
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
+        const SizedBox(height: 5),
+        Text(time, style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
+      ],
     );
   }
 }

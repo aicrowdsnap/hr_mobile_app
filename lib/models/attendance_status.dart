@@ -19,7 +19,7 @@ class AttendanceStatus {
     final record = json['activeRecord'] as Map<String, dynamic>?;
 
     return AttendanceStatus(
-      status: json['status']?.toString() ?? 'clocked_out',
+      status: record?['status']?.toString() ?? json['status']?.toString() ?? 'clocked_out',
       clockInTime: record?['clockInTime']?.toString() ?? json['clockInTime']?.toString(),
       clockOutTime: record?['clockOutTime']?.toString() ?? json['clockOutTime']?.toString(),
       date: record?['attendanceDate']?.toString() ?? json['date']?.toString(),
@@ -29,5 +29,5 @@ class AttendanceStatus {
   }
 
   bool get isClockedIn => status == 'clocked_in';
-  bool get isClockedOut => status == 'clocked_out';
+  bool get isClockedOut => status == 'clocked_out' || status == 'completed';
 }

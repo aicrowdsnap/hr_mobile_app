@@ -29,6 +29,9 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _loading = true;
   String? _error;
 
+  bool _hasShiftToday = false;
+  bool _hasCompletedToday = false;
+
   @override
   void initState() {
     super.initState();
@@ -52,11 +55,29 @@ class _HomeScreenState extends State<HomeScreen> {
         final slNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
         final todayStr = DateFormat('yyyy-MM-dd').format(slNow);
         
-        final history = await _attendanceService.getDailyAttendanceRecords(
-          employeeId: employeeId, 
-          year: slNow.year, 
-          month: slNow.month
-        );
+        final startDate = DateTime.utc(slNow.year, slNow.month, 1).subtract(const Duration(hours: 5, minutes: 30));
+        final endDate = DateTime.utc(slNow.year, slNow.month + 1, 1).subtract(const Duration(hours: 5, minutes: 30));
+
+        final dataResults = await Future.wait([
+          _attendanceService.getDailyAttendanceRecords(
+            employeeId: employeeId, 
+            year: slNow.year, 
+            month: slNow.month
+          ),
+          _attendanceService.getMyDailyShifts(
+            startDate: startDate.toIso8601String(), 
+            endDate: endDate.toIso8601String()
+          ),
+        ]);
+
+        final history = dataResults[0] as List<dynamic>;
+        final rawShifts = dataResults[1] as List<dynamic>;
+
+        _hasShiftToday = rawShifts.any((s) {
+          if (s['shiftDate'] == null) return false;
+          final localDate = DateTime.parse(s['shiftDate']).toLocal();
+          return DateFormat('yyyy-MM-dd').format(localDate) == todayStr;
+        });
 
         Map<String, dynamic>? todayRecord;
         for (var a in history) {
@@ -69,10 +90,12 @@ class _HomeScreenState extends State<HomeScreen> {
           }
         }
 
-        if (!(_attendance?.isClockedIn ?? false) && todayRecord != null) {
+        _hasCompletedToday = todayRecord != null && todayRecord['clockOutTime'] != null;
+
+        if (todayRecord != null) {
           setState(() {
             _attendance = AttendanceStatus(
-              status: 'clocked_out',
+              status: todayRecord!['status']?.toString() ?? 'clocked_out',
               clockInTime: todayRecord?['clockInTime']?.toString(),
               clockOutTime: todayRecord?['clockOutTime']?.toString(),
               date: todayRecord?['attendanceDate']?.toString(),
@@ -323,7 +346,11 @@ class _HomeScreenState extends State<HomeScreen> {
             else if (_error != null)
               _ErrorCard(message: _error!, onRetry: _loadDashboardData)
             else
-              AttendanceStatusCard(attendance: _attendance),
+              AttendanceStatusCard(
+                attendance: _attendance,
+                hasShiftAssigned: _hasShiftToday,
+                hasCompletedToday: _hasCompletedToday,
+              ),
             const SizedBox(height: 20),
             _QuickActionCard(
               icon: Icons.fingerprint_rounded,
@@ -346,8 +373,7 @@ class _HomeScreenState extends State<HomeScreen> {
               iconColor: Colors.orange.shade400,
               title: 'Leave Management',
               subtitle: 'Apply for leave & check balances',
-              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeaveScreen()),
-              ),
+              onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const LeaveScreen())),
             ),
           ],
         ),
@@ -379,73 +405,151 @@ class _ProfileDetailRow extends StatelessWidget {
 
 class AttendanceStatusCard extends StatelessWidget {
   final AttendanceStatus? attendance;
-  const AttendanceStatusCard({super.key, required this.attendance});
+  final bool hasShiftAssigned;
+  final bool hasCompletedToday;
+
+  const AttendanceStatusCard({
+    super.key,
+    required this.attendance,
+    required this.hasShiftAssigned,
+    required this.hasCompletedToday,
+  });
 
   String _formatTime(String? value) {
     if (value == null || value.trim().isEmpty) return '--';
     try {
       final cleanValue = value.replaceAll('Z', '').replaceAll('z', '');
-      DateTime dateTime = DateTime.parse(cleanValue);
-
+      DateTime dateTime = DateTime.parse(cleanValue).toLocal();
       final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
       final minute = dateTime.minute.toString().padLeft(2, '0');
       final period = dateTime.hour >= 12 ? 'PM' : 'AM';
       return '$hour:$minute $period';
-    } catch (_) { return value; }
+    } catch (_) {
+      return value;
+    }
   }
 
   String _formatWorkingHours() {
     int totalMins = attendance?.totalWorkingMinutes ?? 0;
-    
-    if ((attendance?.isClockedIn ?? false) && attendance?.clockInTime != null) {
+    final isClockedIn = attendance?.isClockedIn ?? false;
+
+    if (isClockedIn && attendance?.clockInTime != null) {
       try {
         final cleanTime = attendance!.clockInTime!.replaceAll('Z', '').replaceAll('z', '');
-        final clockInTime = DateTime.parse(cleanTime);
+        final clockInTime = DateTime.parse(cleanTime).toLocal();
         totalMins = DateTime.now().difference(clockInTime).inMinutes;
       } catch (_) {}
     }
 
     if (totalMins <= 0) return '--';
-
     final hours = totalMins ~/ 60;
     final mins = totalMins % 60;
-
-    if (hours == 0) return '$mins mins';
-    if (mins == 0) return '$hours hrs';
-    return '$hours hrs $mins mins';
+    if (hours == 0) return '${mins}m';
+    return '${hours}h ${mins}m';
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isIn = attendance?.isClockedIn ?? false;
+    final isClockedIn = attendance?.isClockedIn ?? false;
+
+    Color cardColor;
+    Color iconColor;
+    IconData statusIcon;
+    String statusTitle;
+    String statusBadge;
+
+    if (hasCompletedToday) {
+      cardColor = AppColors.success;
+      iconColor = AppColors.success;
+      statusIcon = Icons.task_alt_rounded;
+      statusTitle = "Shift Completed";
+      statusBadge = "COMPLETED";
+    } else if (isClockedIn) {
+      cardColor = AppColors.primaryCyan;
+      iconColor = AppColors.primaryCyan;
+      statusIcon = Icons.access_time_filled;
+      statusTitle = "Active Shift";
+      statusBadge = "CLOCKED IN";
+    } else if (hasShiftAssigned) {
+      cardColor = Colors.orange;
+      iconColor = Colors.orange;
+      statusIcon = Icons.schedule_rounded;
+      statusTitle = "Pending Clock In";
+      statusBadge = "ACTION REQUIRED";
+    } else {
+      cardColor = isDark ? AppColors.darkBorder : AppColors.lightBorder;
+      iconColor = isDark ? AppColors.darkIcon : AppColors.lightIcon;
+      statusIcon = Icons.event_busy_rounded;
+      statusTitle = "No Shift Assigned";
+      statusBadge = "OFF";
+    }
+
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
         color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isIn ? AppColors.primaryCyan.withValues(alpha: 0.5) : Colors.transparent),
+        border: Border.all(color: cardColor.withOpacity(0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.access_time_filled, color: isIn ? AppColors.primaryCyan : (isDark ? AppColors.darkIcon : AppColors.lightIcon)),
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: iconColor.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(statusIcon, color: iconColor),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: Text("Today's Attendance", style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 18, fontWeight: FontWeight.bold))),
+              Expanded(
+                child: Text(
+                  statusTitle,
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: isIn ? AppColors.primaryCyan : (isDark ? AppColors.darkBorder : AppColors.lightBorder), borderRadius: BorderRadius.circular(30)),
-                child: Text(isIn ? 'CLOCKED IN' : 'CLOCKED OUT', style: TextStyle(color: isIn ? AppColors.darkBackground : AppColors.lightBackground, fontSize: 10, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(
+                  color: cardColor,
+                  borderRadius: BorderRadius.circular(30),
+                ),
+                child: Text(
+                  statusBadge,
+                  style: TextStyle(
+                    color: isDark ? AppColors.darkBackground : AppColors.lightBackground,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 22),
           Row(
             children: [
-              Expanded(child: _HomeTime(title: 'Clock In', time: _formatTime(attendance?.clockInTime))),
-              Expanded(child: _HomeTime(title: 'Clock Out', time: _formatTime(attendance?.clockOutTime))),
+              Expanded(
+                child: _HomeTime(
+                  title: 'Clock In',
+                  time: _formatTime(attendance?.clockInTime),
+                  isDark: isDark,
+                ),
+              ),
+              Expanded(
+                child: _HomeTime(
+                  title: 'Clock Out',
+                  time: _formatTime(attendance?.clockOutTime),
+                  isDark: isDark,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 15),
@@ -454,8 +558,21 @@ class AttendanceStatusCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total Worked Time:', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
-              Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.primaryCyan, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text(
+                isClockedIn ? 'Active Worked Time:' : 'Total Worked Time:',
+                style: TextStyle(
+                  color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
+                  fontSize: 13,
+                ),
+              ),
+              Text(
+                _formatWorkingHours(),
+                style: TextStyle(
+                  color: iconColor,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ],
           ),
         ],
@@ -467,16 +584,18 @@ class AttendanceStatusCard extends StatelessWidget {
 class _HomeTime extends StatelessWidget {
   final String title;
   final String time;
-  const _HomeTime({required this.title, required this.time});
+  final bool isDark;
+
+  const _HomeTime({required this.title, required this.time, required this.isDark});
+
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(title, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
         const SizedBox(height: 5),
-        Text(time, style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(time, style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 20, fontWeight: FontWeight.bold)),
       ],
     );
   }
