@@ -1,4 +1,3 @@
-// lib/screens/my_calendar_screen.dart
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
 import 'package:intl/intl.dart';
@@ -103,18 +102,19 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final selectedKey = _selectedDay != null ? _dateKey(_selectedDay!) : '';
     final dayShift = _shiftsMap[selectedKey];
     final dayHoliday = _holidaysMap[selectedKey];
     final dayAttendance = _attendanceMap[selectedKey];
 
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(title: const Text('My Schedule & History')),
       body: Column(
         children: [
           Container(
-            color: AppColors.darkPurple,
+            color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
             child: TableCalendar(
               firstDay: DateTime.utc(2020, 1, 1),
               lastDay: DateTime.utc(2030, 12, 31),
@@ -128,42 +128,42 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
                 markerBuilder: (context, date, events) {
                   final key = _dateKey(date);
                   final markers = <Widget>[];
-                  if (_holidaysMap.containsKey(key)) markers.add(_buildMarker(Colors.amber));
+                  if (_holidaysMap.containsKey(key)) markers.add(_buildMarker(AppColors.warning));
                   if (_shiftsMap.containsKey(key)) markers.add(_buildMarker(AppColors.skyBlue));
                   if (_attendanceMap.containsKey(key)) {
                     final status = _attendanceMap[key]['status'];
-                    if (status == 'present') markers.add(_buildMarker(AppColors.brightCyan));
-                    else if (status == 'absent') markers.add(_buildMarker(Colors.red));
+                    if (status == 'present') markers.add(_buildMarker(AppColors.primaryCyan));
+                    else if (status == 'absent') markers.add(_buildMarker(AppColors.error));
                     else if (status == 'on_leave') markers.add(_buildMarker(AppColors.purple));
                   }
                   if (markers.isEmpty) return const SizedBox();
                   return Positioned(bottom: 6, child: Row(mainAxisSize: MainAxisSize.min, children: markers));
                 },
               ),
-              headerStyle: const HeaderStyle(
-                titleTextStyle: TextStyle(color: Colors.white, fontSize: 17),
-                formatButtonTextStyle: TextStyle(color: Colors.white),
-                formatButtonDecoration: BoxDecoration(border: Border.fromBorderSide(BorderSide(color: Colors.white30)), borderRadius: BorderRadius.all(Radius.circular(12))),
-                leftChevronIcon: Icon(Icons.chevron_left, color: Colors.white),
-                rightChevronIcon: Icon(Icons.chevron_right, color: Colors.white),
+              headerStyle: HeaderStyle(
+                titleTextStyle: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 17),
+                formatButtonTextStyle: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                formatButtonDecoration: BoxDecoration(border: Border.fromBorderSide(BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)), borderRadius: const BorderRadius.all(Radius.circular(12))),
+                leftChevronIcon: Icon(Icons.chevron_left, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                rightChevronIcon: Icon(Icons.chevron_right, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
               ),
-              daysOfWeekStyle: const DaysOfWeekStyle(
-                weekdayStyle: TextStyle(color: Colors.white70),
-                weekendStyle: TextStyle(color: Colors.white70),
+              daysOfWeekStyle: DaysOfWeekStyle(
+                weekdayStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                weekendStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
               ),
-              calendarStyle: const CalendarStyle(
-                defaultTextStyle: TextStyle(color: Colors.white),
-                weekendTextStyle: TextStyle(color: Colors.white70),
-                outsideTextStyle: TextStyle(color: Colors.white30),
-                todayDecoration: BoxDecoration(color: AppColors.darkMagenta, shape: BoxShape.circle),
-                todayTextStyle: TextStyle(color: Colors.white),
-                selectedDecoration: BoxDecoration(color: AppColors.brightCyan, shape: BoxShape.circle),
-                selectedTextStyle: TextStyle(color: AppColors.darkBlue, fontWeight: FontWeight.bold),
+              calendarStyle: CalendarStyle(
+                defaultTextStyle: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                weekendTextStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+                outsideTextStyle: TextStyle(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
+                todayDecoration: BoxDecoration(color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight, shape: BoxShape.circle),
+                todayTextStyle: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                selectedDecoration: const BoxDecoration(color: AppColors.primaryCyan, shape: BoxShape.circle),
+                selectedTextStyle: const TextStyle(color: AppColors.darkBackground, fontWeight: FontWeight.bold),
               ),
             ),
           ),
           if (_isLoading)
-            const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.brightCyan)))
+            const Expanded(child: Center(child: CircularProgressIndicator(color: AppColors.primaryCyan)))
           else
             Expanded(
               child: ListView(
@@ -171,17 +171,17 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
                 children: [
                   Text(
                     _selectedDay != null ? DateFormat('EEEE, MMMM d, yyyy').format(_selectedDay!) : 'Select a date',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                   ),
                   const SizedBox(height: 16),
                   if (dayHoliday != null)
-                    _DetailCard(icon: Icons.celebration, iconColor: Colors.amber, title: 'Holiday: ${dayHoliday['name']}', subtitle: dayHoliday['description'] ?? 'Company Holiday', bgColor: Colors.amber.withValues(alpha: 0.1)),
+                    _DetailCard(icon: Icons.celebration, iconColor: AppColors.warning, title: 'Holiday: ${dayHoliday['name']}', subtitle: dayHoliday['description'] ?? 'Company Holiday', bgColor: AppColors.warning.withValues(alpha: 0.1)),
                   if (dayShift != null)
                     _DetailCard(icon: Icons.work_history_rounded, iconColor: AppColors.skyBlue, title: 'Assigned Shift: ${dayShift['name']}', subtitle: '${dayShift['startTime']} - ${dayShift['endTime']}', bgColor: AppColors.skyBlue.withValues(alpha: 0.1))
                   else if (dayHoliday == null)
-                    _DetailCard(icon: Icons.bedtime_rounded, iconColor: Colors.grey.shade400, title: 'No Shift Assigned', subtitle: 'Rest day or pending assignment', bgColor: AppColors.darkPurple),
+                    _DetailCard(icon: Icons.bedtime_rounded, iconColor: isDark ? AppColors.darkIcon : AppColors.lightIcon, title: 'No Shift Assigned', subtitle: 'Rest day or pending assignment', bgColor: isDark ? AppColors.darkSurface : AppColors.lightSurface),
                   if (dayAttendance != null)
-                    _DetailCard(icon: _getAttendanceIcon(dayAttendance['status']), iconColor: _getAttendanceColor(dayAttendance['status']), title: 'Attendance: ${_formatStatus(dayAttendance['status'])}', subtitle: dayAttendance['notes'] ?? 'Record logged', bgColor: AppColors.darkPurple),
+                    _DetailCard(icon: _getAttendanceIcon(dayAttendance['status']), iconColor: _getAttendanceColor(dayAttendance['status']), title: 'Attendance: ${_formatStatus(dayAttendance['status'])}', subtitle: dayAttendance['notes'] ?? 'Record logged', bgColor: isDark ? AppColors.darkSurface : AppColors.lightSurface),
                 ],
               ),
             ),
@@ -201,10 +201,10 @@ class _MyCalendarScreenState extends State<MyCalendarScreen> {
 
   Color _getAttendanceColor(String status) {
     switch (status) {
-      case 'present': return AppColors.brightCyan;
-      case 'absent': return Colors.red;
+      case 'present': return AppColors.primaryCyan;
+      case 'absent': return AppColors.error;
       case 'on_leave': return AppColors.purple;
-      default: return Colors.grey;
+      default: return AppColors.lightIcon;
     }
   }
 
@@ -218,15 +218,16 @@ class _DetailCard extends StatelessWidget {
   const _DetailCard({required this.icon, required this.iconColor, required this.title, required this.subtitle, required this.bgColor});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.white10)),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(16), border: Border.all(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
-            decoration: const BoxDecoration(color: AppColors.darkMagenta, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight, shape: BoxShape.circle),
             child: Icon(icon, color: iconColor, size: 24),
           ),
           const SizedBox(width: 16),
@@ -234,9 +235,9 @@ class _DetailCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Colors.white)),
+                Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                 const SizedBox(height: 4),
-                Text(subtitle, style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                Text(subtitle, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
               ],
             ),
           ),

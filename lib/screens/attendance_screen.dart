@@ -1,4 +1,3 @@
-// lib/screens/attendance_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -141,7 +140,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           content: Text(clockIn ? 'Clock-in successful' : 'Clock-out successful', style: const TextStyle(color: Colors.white)),
-          backgroundColor: AppColors.brightCyan,
+          backgroundColor: AppColors.primaryCyan,
           behavior: SnackBarBehavior.floating, 
           margin: const EdgeInsets.all(16),
         ));
@@ -173,7 +172,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
         ..hideCurrentSnackBar()
         ..showSnackBar(SnackBar(
           content: Text(errorMessage, style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red.shade700, 
+          backgroundColor: AppColors.error, 
           behavior: SnackBarBehavior.floating, 
           margin: const EdgeInsets.all(16),
         ));
@@ -217,6 +216,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isClockedIn = _attendance?.isClockedIn ?? false;
     final hasCompletedToday = !isClockedIn && _todayRecord != null && _todayRecord!['clockOutTime'] != null;
     
@@ -231,7 +231,7 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
     final bool canClockIn = _shifts.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(title: const Text('Mark Attendance')),
       body: RefreshIndicator(
         onRefresh: _loadData,
@@ -240,31 +240,31 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
           children: [
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: AppColors.darkPurple, borderRadius: BorderRadius.circular(24)),
+              decoration: BoxDecoration(color: isDark ? AppColors.darkSurface : AppColors.lightSurface, borderRadius: BorderRadius.circular(24)),
               child: Column(
                 children: [
                   Container(
                     width: 90, height: 90,
                     decoration: BoxDecoration(
-                      color: hasCompletedToday ? Colors.teal.withValues(alpha: 0.15) 
-                           : isClockedIn ? AppColors.brightCyan.withValues(alpha: 0.15) 
-                           : Colors.blue.withValues(alpha: 0.15),
+                      color: hasCompletedToday ? AppColors.success.withValues(alpha: 0.15) 
+                           : isClockedIn ? AppColors.primaryCyan.withValues(alpha: 0.15) 
+                           : AppColors.info.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
                       hasCompletedToday ? Icons.check_circle_rounded : isClockedIn ? Icons.how_to_reg_rounded : Icons.access_time_rounded,
-                      size: 48, color: hasCompletedToday ? Colors.teal : isClockedIn ? AppColors.brightCyan : Colors.blue,
+                      size: 48, color: hasCompletedToday ? AppColors.success : isClockedIn ? AppColors.primaryCyan : AppColors.info,
                     ),
                   ),
                   const SizedBox(height: 20),
                   Text(
                     hasCompletedToday ? 'Shift Completed' : isClockedIn ? 'You are currently clocked in' : 'You are not clocked in',
-                    textAlign: TextAlign.center, style: const TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: Colors.white),
+                    textAlign: TextAlign.center, style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     hasCompletedToday ? 'You have already completed your shift for today.' : isClockedIn ? 'Your attendance is active for today.' : 'Select your shift and clock in to start.',
-                    textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                    textAlign: TextAlign.center, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 14),
                   ),
                   const SizedBox(height: 28),
                   
@@ -273,18 +273,18 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       Container(
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.1), 
+                          color: AppColors.warning.withValues(alpha: 0.1), 
                           borderRadius: BorderRadius.circular(14), 
-                          border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.warning_amber_rounded, color: Colors.amber),
+                            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'No shifts assigned to you for today. Please contact HR to assign a shift.', 
-                                style: TextStyle(color: Colors.amber.shade200, fontSize: 13),
+                                style: TextStyle(color: isDark ? AppColors.warning : Colors.orange.shade800, fontSize: 13),
                               ),
                             ),
                           ],
@@ -292,15 +292,15 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                       )
                     else
                       Theme(
-                        data: Theme.of(context).copyWith(canvasColor: AppColors.darkPurple),
+                        data: Theme.of(context).copyWith(canvasColor: isDark ? AppColors.darkSurface : AppColors.lightSurface),
                         child: DropdownButtonFormField<String>(
                           value: _selectedShiftId,
-                          style: const TextStyle(color: Colors.white),
+                          style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                           decoration: InputDecoration(
                             labelText: 'Select Shift',
-                            labelStyle: TextStyle(color: Colors.grey.shade400),
+                            labelStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade700)),
+                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
                           ),
                           items: _shifts.map((item) {
                             final shift = item['shift'] as Map<String, dynamic>;
@@ -315,13 +315,13 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                     const SizedBox(height: 20),
                   ],
 
-                  if (_loading) const CircularProgressIndicator(color: AppColors.brightCyan)
+                  if (_loading) const CircularProgressIndicator(color: AppColors.primaryCyan)
                   else if (_error != null)
                     Column(
                       children: [
-                        const Icon(Icons.error_outline, color: Colors.red, size: 38),
+                        const Icon(Icons.error_outline, color: AppColors.error, size: 38),
                         const SizedBox(height: 8),
-                        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+                        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12)),
                       ],
                     )
                   else ...[
@@ -332,14 +332,14 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(14),
                         decoration: BoxDecoration(
-                          color: AppColors.darkMagenta,
+                          color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
                           borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Text('Active Worked Time:', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-                            Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.brightCyan, fontSize: 15, fontWeight: FontWeight.bold)),
+                            Text('Active Worked Time:', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
+                            Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.primaryCyan, fontSize: 15, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -356,8 +356,8 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
                             : Icon(isClockedIn ? Icons.logout_rounded : Icons.login_rounded),
                         label: Text(_actionLoading ? 'Processing...' : isClockedIn ? 'Clock Out' : 'Clock In', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isClockedIn ? Colors.red.shade600 : AppColors.brightCyan,
-                          disabledBackgroundColor: Colors.grey.shade700,
+                          backgroundColor: isClockedIn ? AppColors.error : AppColors.primaryCyan,
+                          disabledBackgroundColor: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
                           foregroundColor: Colors.white,
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
                         ),
@@ -394,16 +394,17 @@ class _TimeBox extends StatelessWidget {
   const _TimeBox({required this.icon, required this.title, required this.time});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: AppColors.darkMagenta, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight, borderRadius: BorderRadius.circular(16)),
       child: Column(
         children: [
-          Icon(icon, color: Colors.blue.shade400),
+          Icon(icon, color: AppColors.info),
           const SizedBox(height: 7),
-          Text(title, style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+          Text(title, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12)),
           const SizedBox(height: 5),
-          Text(time, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.white)),
+          Text(time, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
         ],
       ),
     );

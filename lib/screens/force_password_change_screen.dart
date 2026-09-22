@@ -55,7 +55,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(widget.isVoluntary ? 'Password updated successfully!' : 'Security credentials updated! Proceeding to dashboard.'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
         ),
       );
 
@@ -78,7 +78,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(errorMsg, style: const TextStyle(color: Colors.white)),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error,
         ),
       );
     } finally {
@@ -101,35 +101,36 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
     return null;
   }
 
-  InputDecoration _inputDecoration({required String hint, required IconData icon, required bool isHidden, required VoidCallback toggleVisibility}) {
+  InputDecoration _inputDecoration({required String hint, required IconData icon, required bool isHidden, required VoidCallback toggleVisibility, required bool isDark}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade500),
-      prefixIcon: Icon(icon, color: Colors.grey.shade500),
+      hintStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+      prefixIcon: Icon(icon, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
       suffixIcon: IconButton(
         onPressed: toggleVisibility,
-        icon: Icon(isHidden ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade500),
+        icon: Icon(isHidden ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
       ),
       filled: true,
-      fillColor: AppColors.darkBlue,
+      fillColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade800)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.brightCyan, width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primaryCyan, width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.error)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: widget.isVoluntary 
         ? AppBar(
             backgroundColor: Colors.transparent,
             elevation: 0,
             leading: IconButton(
-              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              icon: Icon(Icons.arrow_back, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
               onPressed: () => Navigator.of(context).pop(),
             ),
           ) 
@@ -142,15 +143,15 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
               constraints: const BoxConstraints(maxWidth: 450),
               child: Column(
                 children: [
-                  Icon(widget.isVoluntary ? Icons.lock_reset : Icons.security, size: 70, color: AppColors.brightCyan),
+                  Icon(widget.isVoluntary ? Icons.lock_reset : Icons.security, size: 70, color: AppColors.primaryCyan),
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.darkPurple,
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
                       ],
                     ),
                     child: Form(
@@ -160,26 +161,27 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                         children: [
                           Text(
                             widget.isVoluntary ? 'Change Password' : 'Security Update Required', 
-                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)
+                            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)
                           ),
                           const SizedBox(height: 8),
                           Text(
                             widget.isVoluntary 
                               ? 'Enter your current password and choose a new secure password.'
                               : 'Your workplace credentials use a temporary system default password. Please choose a new secure password.', 
-                            style: TextStyle(color: Colors.grey.shade400, fontSize: 13)
+                            style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)
                           ),
                           const SizedBox(height: 24),
                           
                           TextFormField(
                             controller: _currentPasswordController,
                             obscureText: _hideCurrent,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                             decoration: _inputDecoration(
                               hint: widget.isVoluntary ? 'Current Password' : 'Temporary Default Password', 
                               icon: Icons.lock_outline,
                               isHidden: _hideCurrent,
-                              toggleVisibility: () => setState(() => _hideCurrent = !_hideCurrent)
+                              toggleVisibility: () => setState(() => _hideCurrent = !_hideCurrent),
+                              isDark: isDark
                             ),
                             validator: (value) => value == null || value.isEmpty ? 'Required' : null,
                           ),
@@ -188,12 +190,13 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                           TextFormField(
                             controller: _newPasswordController,
                             obscureText: _hideNew,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                             decoration: _inputDecoration(
                               hint: 'New Secure Password', 
                               icon: Icons.vpn_key_outlined,
                               isHidden: _hideNew,
-                              toggleVisibility: () => setState(() => _hideNew = !_hideNew)
+                              toggleVisibility: () => setState(() => _hideNew = !_hideNew),
+                              isDark: isDark
                             ),
                             validator: _validateNewPassword,
                             onChanged: (_) => setState(() {}),
@@ -203,12 +206,13 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                           TextFormField(
                             controller: _confirmPasswordController,
                             obscureText: _hideConfirm,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                             decoration: _inputDecoration(
                               hint: 'Confirm New Password', 
                               icon: Icons.check_circle_outline,
                               isHidden: _hideConfirm,
-                              toggleVisibility: () => setState(() => _hideConfirm = !_hideConfirm)
+                              toggleVisibility: () => setState(() => _hideConfirm = !_hideConfirm),
+                              isDark: isDark
                             ),
                             validator: (value) {
                               if (value != _newPasswordController.text) return 'Passwords do not match';
@@ -223,8 +227,8 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _updatePassword,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.brightCyan,
-                                foregroundColor: AppColors.darkBlue,
+                                backgroundColor: AppColors.primaryCyan,
+                                foregroundColor: AppColors.darkBackground,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
                               child: _isLoading

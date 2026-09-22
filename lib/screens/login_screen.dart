@@ -72,33 +72,34 @@ class _LoginScreenState extends State<LoginScreen> {
         SnackBar(
           content: Text(message, style: const TextStyle(color: Colors.white)),
           behavior: SnackBarBehavior.floating,
-          backgroundColor: Colors.red.shade600,
+          backgroundColor: AppColors.error,
           margin: const EdgeInsets.all(16),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ),
       );
   }
 
-  InputDecoration _inputDecoration({required String hint, required IconData icon, Widget? suffixIcon}) {
+  InputDecoration _inputDecoration({required String hint, required IconData icon, required bool isDark, Widget? suffixIcon}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade500),
-      prefixIcon: Icon(icon, color: Colors.grey.shade500),
+      hintStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+      prefixIcon: Icon(icon, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: AppColors.darkBlue,
+      fillColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade800)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.brightCyan, width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primaryCyan, width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.error)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -111,18 +112,18 @@ class _LoginScreenState extends State<LoginScreen> {
                     'assets/images/logo.png',
                     height: 70,
                     errorBuilder: (context, error, stackTrace) => 
-                      const Icon(Icons.business, size: 70, color: AppColors.brightCyan),
+                      const Icon(Icons.business, size: 70, color: AppColors.primaryCyan),
                   ),
                   const SizedBox(height: 12),
-                  Text('Employee Attendance', style: TextStyle(fontSize: 15, color: Colors.grey.shade400)),
+                  Text('Employee Attendance', style: TextStyle(fontSize: 15, color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                   const SizedBox(height: 35),
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.darkPurple,
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
                       ],
                     ),
                     child: Form(
@@ -130,35 +131,36 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Sign in', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Text('Sign in', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                           const SizedBox(height: 8),
-                          Text('Enter your employee credentials to continue.', style: TextStyle(color: Colors.grey.shade400)),
+                          Text('Enter your employee credentials to continue.', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                           const SizedBox(height: 24),
                           TextFormField(
                             controller: _identifierController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration(hint: 'Employee ID / Email', icon: Icons.person_outline),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                            decoration: _inputDecoration(hint: 'Employee ID / Email', icon: Icons.person_outline, isDark: isDark),
                             validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
                           ),
                           const SizedBox(height: 15),
                           TextFormField(
                             controller: _organizationController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration(hint: 'Organization Slug', icon: Icons.apartment_outlined),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                            decoration: _inputDecoration(hint: 'Organization Slug', icon: Icons.apartment_outlined, isDark: isDark),
                             validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
                           ),
                           const SizedBox(height: 15),
                           TextFormField(
                             controller: _passwordController,
                             obscureText: _hidePassword,
-                            style: const TextStyle(color: Colors.white),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
                             onFieldSubmitted: (_) => _login(),
                             decoration: _inputDecoration(
                               hint: 'Password',
                               icon: Icons.lock_outline,
+                              isDark: isDark,
                               suffixIcon: IconButton(
                                 onPressed: () => setState(() => _hidePassword = !_hidePassword),
-                                icon: Icon(_hidePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: Colors.grey.shade500),
+                                icon: Icon(_hidePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
                               ),
                             ),
                             validator: (value) => value == null || value.isEmpty ? 'Required' : null,
@@ -170,12 +172,12 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _login,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.brightCyan,
-                                foregroundColor: AppColors.darkBlue,
+                                backgroundColor: AppColors.primaryCyan,
+                                foregroundColor: AppColors.darkBackground,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
                               child: _isLoading
-                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: AppColors.darkBlue, strokeWidth: 2))
+                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: AppColors.darkBackground, strokeWidth: 2))
                                   : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
@@ -185,7 +187,7 @@ class _LoginScreenState extends State<LoginScreen> {
                               onPressed: () {
                                 Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
                               },
-                              child: const Text('Forgot Password?', style: TextStyle(color: AppColors.brightCyan, fontSize: 14)),
+                              child: const Text('Forgot Password?', style: TextStyle(color: AppColors.primaryCyan, fontSize: 14)),
                             ),
                           ),
                         ],

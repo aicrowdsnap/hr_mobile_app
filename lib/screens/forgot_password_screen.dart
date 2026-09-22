@@ -48,7 +48,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               style: TextStyle(color: Colors.white),
             ),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.green.shade600,
+            backgroundColor: AppColors.success,
             margin: const EdgeInsets.all(16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -63,7 +63,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           SnackBar(
             content: Text(e.toString(), style: const TextStyle(color: Colors.white)),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: Colors.red.shade600,
+            backgroundColor: AppColors.error,
             margin: const EdgeInsets.all(16),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
@@ -73,30 +73,31 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     }
   }
 
-  InputDecoration _inputDecoration({required String hint, required IconData icon}) {
+  InputDecoration _inputDecoration({required String hint, required IconData icon, required bool isDark}) {
     return InputDecoration(
       hintText: hint,
-      hintStyle: TextStyle(color: Colors.grey.shade500),
-      prefixIcon: Icon(icon, color: Colors.grey.shade500),
+      hintStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
+      prefixIcon: Icon(icon, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
       filled: true,
-      fillColor: AppColors.darkBlue,
+      fillColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide.none),
-      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: Colors.grey.shade800)),
-      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.brightCyan, width: 1.5)),
-      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: Colors.red)),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.primaryCyan, width: 1.5)),
+      errorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: const BorderSide(color: AppColors.error)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 17),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: Icon(Icons.arrow_back, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -108,15 +109,15 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
               constraints: const BoxConstraints(maxWidth: 450),
               child: Column(
                 children: [
-                  const Icon(Icons.lock_reset, size: 70, color: AppColors.brightCyan),
+                  const Icon(Icons.lock_reset, size: 70, color: AppColors.primaryCyan),
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(24),
                     decoration: BoxDecoration(
-                      color: AppColors.darkPurple,
+                      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                       borderRadius: BorderRadius.circular(24),
                       boxShadow: [
-                        BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 20, offset: const Offset(0, 10)),
+                        BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 20, offset: const Offset(0, 10)),
                       ],
                     ),
                     child: Form(
@@ -124,23 +125,23 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Reset Password', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Text('Reset Password', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                           const SizedBox(height: 8),
-                          Text('Enter your account identifier and company slug to receive a reset link.', style: TextStyle(color: Colors.grey.shade400)),
+                          Text('Enter your account identifier and company slug to receive a reset link.', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
                           const SizedBox(height: 24),
                           
                           TextFormField(
                             controller: _identifierController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration(hint: 'Email, Mobile, or Employee ID', icon: Icons.person_outline),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                            decoration: _inputDecoration(hint: 'Email, Mobile, or Employee ID', icon: Icons.person_outline, isDark: isDark),
                             validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
                           ),
                           const SizedBox(height: 15),
 
                           TextFormField(
                             controller: _organizationController,
-                            style: const TextStyle(color: Colors.white),
-                            decoration: _inputDecoration(hint: 'Company Slug (e.g. acme-corp)', icon: Icons.apartment_outlined),
+                            style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                            decoration: _inputDecoration(hint: 'Company Slug (e.g. acme-corp)', icon: Icons.apartment_outlined, isDark: isDark),
                             validator: (value) => value == null || value.trim().isEmpty ? 'Required' : null,
                           ),
                           const SizedBox(height: 24),
@@ -151,12 +152,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _submitRequest,
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.brightCyan,
-                                foregroundColor: AppColors.darkBlue,
+                                backgroundColor: AppColors.primaryCyan,
+                                foregroundColor: AppColors.darkBackground,
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                               ),
                               child: _isLoading
-                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: AppColors.darkBlue, strokeWidth: 2))
+                                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: AppColors.darkBackground, strokeWidth: 2))
                                   : const Text('Send Reset Link', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),

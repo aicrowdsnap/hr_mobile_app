@@ -30,20 +30,20 @@ class NovaHrApp extends StatelessWidget {
             useMaterial3: true,
             fontFamily: 'Roboto',
             colorScheme: ColorScheme.fromSeed(
-              seedColor: AppColors.brightCyan,
+              seedColor: AppColors.primaryCyan,
               brightness: Brightness.light,
-              surface: AppColors.background,
+              surface: AppColors.lightSurface,
             ),
-            scaffoldBackgroundColor: AppColors.background,
+            scaffoldBackgroundColor: AppColors.lightBackground,
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              iconTheme: IconThemeData(color: AppColors.foreground),
-              titleTextStyle: TextStyle(color: AppColors.foreground, fontSize: 20, fontWeight: FontWeight.bold),
+              iconTheme: IconThemeData(color: AppColors.lightIcon),
+              titleTextStyle: TextStyle(color: AppColors.lightTextPrimary, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: AppColors.foreground),
-              bodyMedium: TextStyle(color: AppColors.foreground),
+              bodyLarge: TextStyle(color: AppColors.lightTextPrimary),
+              bodyMedium: TextStyle(color: AppColors.lightTextPrimary),
             ),
           ),
 
@@ -52,20 +52,20 @@ class NovaHrApp extends StatelessWidget {
             useMaterial3: true,
             fontFamily: 'Roboto',
             colorScheme: ColorScheme.fromSeed(
-              seedColor: AppColors.brightCyan,
+              seedColor: AppColors.primaryCyan,
               brightness: Brightness.dark,
-              surface: AppColors.darkPurple,
+              surface: AppColors.darkSurface,
             ),
-            scaffoldBackgroundColor: AppColors.darkBlue,
+            scaffoldBackgroundColor: AppColors.darkBackground,
             appBarTheme: const AppBarTheme(
               backgroundColor: Colors.transparent,
               elevation: 0,
-              iconTheme: IconThemeData(color: Colors.white),
-              titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              iconTheme: IconThemeData(color: AppColors.darkIcon),
+              titleTextStyle: TextStyle(color: AppColors.darkTextPrimary, fontSize: 20, fontWeight: FontWeight.bold),
             ),
             textTheme: const TextTheme(
-              bodyLarge: TextStyle(color: Colors.white),
-              bodyMedium: TextStyle(color: Colors.white),
+              bodyLarge: TextStyle(color: AppColors.darkTextPrimary),
+              bodyMedium: TextStyle(color: AppColors.darkTextPrimary),
             ),
           ),
           
@@ -143,8 +143,10 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -155,16 +157,16 @@ class _SplashScreenState extends State<_SplashScreen> with SingleTickerProviderS
                 'assets/images/logo.png',
                 height: 80,
                 errorBuilder: (context, error, stackTrace) => 
-                  const Icon(Icons.business, size: 80, color: AppColors.brightCyan),
+                  const Icon(Icons.business, size: 80, color: AppColors.primaryCyan),
               ),
             ),
             const SizedBox(height: 30),
-            Text('Loading...', style: TextStyle(color: Colors.grey.shade400)),
+            Text('Loading...', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary)),
             const SizedBox(height: 24),
             const SizedBox(
               width: 25,
               height: 25,
-              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.brightCyan),
+              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primaryCyan),
             ),
           ],
         ),

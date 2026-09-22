@@ -90,10 +90,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout() async {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => Dialog(
-        backgroundColor: AppColors.darkPurple,
+        backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -103,21 +104,21 @@ class _HomeScreenState extends State<HomeScreen> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.destructive.withValues(alpha: 0.15),
+                  color: AppColors.error.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.logout_rounded, color: AppColors.destructive, size: 36),
+                child: const Icon(Icons.logout_rounded, color: AppColors.error, size: 36),
               ),
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Confirm Logout',
-                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 10),
               Text(
                 'Are you sure you want to log out of your account?',
                 textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+                style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 14),
               ),
               const SizedBox(height: 28),
               Row(
@@ -129,10 +130,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14),
-                          side: BorderSide(color: Colors.grey.shade700),
+                          side: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
                         ),
                       ),
-                      child: const Text('Cancel', style: TextStyle(color: Colors.white, fontSize: 15)),
+                      child: Text('Cancel', style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 15)),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -140,7 +141,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ElevatedButton(
                       onPressed: () => Navigator.of(context).pop(true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.destructive,
+                        backgroundColor: AppColors.error,
                         foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         elevation: 0,
@@ -169,6 +170,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _showProfileDialog() {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     showDialog(
       context: context,
       builder: (context) {
@@ -182,20 +184,20 @@ class _HomeScreenState extends State<HomeScreen> {
         final status = _employeeProfile?['status'] ?? 'Active';
 
         return AlertDialog(
-          backgroundColor: AppColors.darkPurple,
+          backgroundColor: isDark ? AppColors.darkSurface : AppColors.lightSurface,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           title: Row(
             children: [
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: AppColors.brightCyan.withValues(alpha: 0.15),
+                  color: AppColors.primaryCyan.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
-                child: const Icon(Icons.person_rounded, color: AppColors.brightCyan),
+                child: const Icon(Icons.person_rounded, color: AppColors.primaryCyan),
               ),
               const SizedBox(width: 12),
-              const Text('User Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+              Text('User Profile', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
             ],
           ),
           content: SingleChildScrollView(
@@ -216,7 +218,7 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.brightCyan)),
+              child: const Text('Close', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryCyan)),
             ),
           ],
         );
@@ -226,26 +228,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final userData = _employeeProfile?['user'] as Map<String, dynamic>?;
     final employeeName = userData?['name'] ?? 'Employee';
     final designation = _employeeProfile?['designation']?.toString().replaceAll('_', ' ') ?? 'Employee';
     final department = _employeeProfile?['department']?.toString().replaceAll('_', ' ') ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.darkBlue, 
+      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground, 
       appBar: AppBar(
-        title: Image.asset('assets/images/logo.png', height: 26, errorBuilder: (c, e, s) => const Text('NovaHR')),
+        title: Image.asset('assets/images/logo.png', height: 26, errorBuilder: (c, e, s) => Text('NovaHR', style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary))),
         actions: [
-          // Theme Toggle Added Here
           ValueListenableBuilder<ThemeMode>(
             valueListenable: themeNotifier,
             builder: (context, currentMode, _) {
-              final isDark = currentMode == ThemeMode.dark;
+              final isCurrentDark = currentMode == ThemeMode.dark;
               return Center(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 8.0),
                   child: DayNightSwitch(
-                    isDarkMode: isDark,
+                    isDarkMode: isCurrentDark,
                     onChanged: (val) {
                       themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
                     },
@@ -255,15 +257,15 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           ),
           IconButton(
-            icon: const Icon(Icons.settings_rounded), 
+            icon: Icon(Icons.settings_rounded, color: isDark ? AppColors.darkIcon : AppColors.lightIcon), 
             onPressed: () {
               Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const ForcePasswordChangeScreen(isVoluntary: true)),
               );
             },
           ),
-          IconButton(icon: const Icon(Icons.account_circle_rounded), onPressed: _showProfileDialog),
-          IconButton(icon: const Icon(Icons.logout_rounded), onPressed: _logout),
+          IconButton(icon: Icon(Icons.account_circle_rounded, color: isDark ? AppColors.darkIcon : AppColors.lightIcon), onPressed: _showProfileDialog),
+          IconButton(icon: Icon(Icons.logout_rounded, color: isDark ? AppColors.darkIcon : AppColors.lightIcon), onPressed: _logout),
         ],
       ),
       body: RefreshIndicator(
@@ -274,9 +276,9 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.darkPurple,
+                color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
                 borderRadius: BorderRadius.circular(20),
-                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 15, offset: const Offset(0, 5))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5))],
               ),
               child: Row(
                 children: [
@@ -284,13 +286,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 55,
                     height: 55,
                     decoration: BoxDecoration(
-                      color: AppColors.brightCyan.withValues(alpha: 0.15),
+                      color: AppColors.primaryCyan.withValues(alpha: 0.15),
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
                         employeeName.isNotEmpty ? employeeName[0].toUpperCase() : 'E',
-                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.brightCyan),
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryCyan),
                       ),
                     ),
                   ),
@@ -299,13 +301,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('Welcome back', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                        Text('Welcome back', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
                         const SizedBox(height: 2),
-                        Text(employeeName, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white)),
+                        Text(employeeName, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                         const SizedBox(height: 3),
                         Text(
                           '${designation.toUpperCase()}${department.isNotEmpty ? ' • ${department.toUpperCase()}' : ''}',
-                          style: const TextStyle(color: AppColors.brightCyan, fontSize: 12, fontWeight: FontWeight.w600),
+                          style: const TextStyle(color: AppColors.primaryCyan, fontSize: 12, fontWeight: FontWeight.w600),
                         ),
                       ],
                     ),
@@ -314,10 +316,10 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(height: 20),
-            Text('Dashboard Overview', style: TextStyle(color: Colors.grey.shade400, fontSize: 13, fontWeight: FontWeight.bold)),
+            Text('Dashboard Overview', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13, fontWeight: FontWeight.bold)),
             const SizedBox(height: 16),
             if (_loading)
-              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: AppColors.brightCyan)))
+              const Center(child: Padding(padding: EdgeInsets.all(40), child: CircularProgressIndicator(color: AppColors.primaryCyan)))
             else if (_error != null)
               _ErrorCard(message: _error!, onRetry: _loadDashboardData)
             else
@@ -325,7 +327,7 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 20),
             _QuickActionCard(
               icon: Icons.fingerprint_rounded,
-              iconColor: AppColors.brightCyan,
+              iconColor: AppColors.primaryCyan,
               title: 'Mark Attendance',
               subtitle: 'Clock in or clock out for your shift',
               onTap: () async { await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AttendanceScreen())); _loadDashboardData(); },
@@ -360,14 +362,15 @@ class _ProfileDetailRow extends StatelessWidget {
   const _ProfileDetailRow({required this.label, required this.value});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label, style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+          Text(label, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12)),
           const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white)),
+          Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
         ],
       ),
     );
@@ -414,26 +417,27 @@ class AttendanceStatusCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     final isIn = attendance?.isClockedIn ?? false;
     return Container(
       padding: const EdgeInsets.all(22),
       decoration: BoxDecoration(
-        color: AppColors.darkMagenta,
+        color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
         borderRadius: BorderRadius.circular(24),
-        border: Border.all(color: isIn ? AppColors.brightCyan.withValues(alpha: 0.5) : Colors.transparent),
+        border: Border.all(color: isIn ? AppColors.primaryCyan.withValues(alpha: 0.5) : Colors.transparent),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(Icons.access_time_filled, color: isIn ? AppColors.brightCyan : Colors.grey.shade500),
+              Icon(Icons.access_time_filled, color: isIn ? AppColors.primaryCyan : (isDark ? AppColors.darkIcon : AppColors.lightIcon)),
               const SizedBox(width: 10),
-              const Expanded(child: Text("Today's Attendance", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))),
+              Expanded(child: Text("Today's Attendance", style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 18, fontWeight: FontWeight.bold))),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                decoration: BoxDecoration(color: isIn ? AppColors.brightCyan : Colors.grey.shade600, borderRadius: BorderRadius.circular(30)),
-                child: Text(isIn ? 'CLOCKED IN' : 'CLOCKED OUT', style: TextStyle(color: isIn ? AppColors.darkBlue : Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                decoration: BoxDecoration(color: isIn ? AppColors.primaryCyan : (isDark ? AppColors.darkBorder : AppColors.lightBorder), borderRadius: BorderRadius.circular(30)),
+                child: Text(isIn ? 'CLOCKED IN' : 'CLOCKED OUT', style: TextStyle(color: isIn ? AppColors.darkBackground : AppColors.lightBackground, fontSize: 10, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -445,13 +449,13 @@ class AttendanceStatusCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 15),
-          const Divider(color: Colors.white12),
+          Divider(color: isDark ? AppColors.darkBorder : AppColors.lightBorder),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Total Worked Time:', style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
-              Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.brightCyan, fontSize: 16, fontWeight: FontWeight.bold)),
+              Text('Total Worked Time:', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
+              Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.primaryCyan, fontSize: 16, fontWeight: FontWeight.bold)),
             ],
           ),
         ],
@@ -466,12 +470,13 @@ class _HomeTime extends StatelessWidget {
   const _HomeTime({required this.title, required this.time});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+        Text(title, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
         const SizedBox(height: 5),
-        Text(time, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(time, style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary, fontSize: 24, fontWeight: FontWeight.bold)),
       ],
     );
   }
@@ -486,8 +491,9 @@ class _QuickActionCard extends StatelessWidget {
   const _QuickActionCard({required this.icon, required this.iconColor, required this.title, required this.subtitle, required this.onTap});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Material(
-      color: AppColors.darkPurple,
+      color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
       borderRadius: BorderRadius.circular(20),
       child: InkWell(
         onTap: onTap,
@@ -507,13 +513,13 @@ class _QuickActionCard extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(title, style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
                     const SizedBox(height: 4),
-                    Text(subtitle, style: TextStyle(color: Colors.grey.shade400, fontSize: 13)),
+                    Text(subtitle, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right_rounded, color: Colors.white54),
+              Icon(Icons.chevron_right_rounded, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
             ],
           ),
         ),
@@ -528,18 +534,19 @@ class _ErrorCard extends StatelessWidget {
   const _ErrorCard({required this.message, required this.onRetry});
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
     return Container(
       padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(color: Colors.red.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(18)),
+      decoration: BoxDecoration(color: AppColors.error.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(18)),
       child: Column(
         children: [
-          const Icon(Icons.cloud_off_rounded, color: Colors.red, size: 38),
+          const Icon(Icons.cloud_off_rounded, color: AppColors.error, size: 38),
           const SizedBox(height: 10),
-          const Text('Unable to load data', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
+          Text('Unable to load data', style: TextStyle(fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
           const SizedBox(height: 6),
-          Text(message, textAlign: TextAlign.center, style: TextStyle(color: Colors.grey.shade400, fontSize: 12)),
+          Text(message, textAlign: TextAlign.center, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12)),
           const SizedBox(height: 12),
-          TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: AppColors.brightCyan))),
+          TextButton(onPressed: onRetry, child: const Text('Retry', style: TextStyle(color: AppColors.primaryCyan))),
         ],
       ),
     );
