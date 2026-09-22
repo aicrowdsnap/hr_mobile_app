@@ -1,4 +1,3 @@
-// lib/screens/home_screen.dart
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
@@ -10,6 +9,9 @@ import 'attendance_screen.dart';
 import 'login_screen.dart';
 import 'my_calendar_screen.dart';
 import 'leave_screen.dart';
+import '../main.dart';
+import 'force_password_change_screen.dart';
+import '../widgets/day_night_switch.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -88,6 +90,77 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _logout() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (context) => Dialog(
+        backgroundColor: AppColors.darkPurple,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.destructive.withValues(alpha: 0.15),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.logout_rounded, color: AppColors.destructive, size: 36),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Confirm Logout',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Are you sure you want to log out of your account?',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey.shade400, fontSize: 14),
+              ),
+              const SizedBox(height: 28),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: TextButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          side: BorderSide(color: Colors.grey.shade700),
+                        ),
+                      ),
+                      child: const Text('Cancel', style: TextStyle(color: Colors.white, fontSize: 15)),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.destructive,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                      ),
+                      child: const Text('Logout', style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (confirm != true) return;
+
     try { await _authService.logout(); } catch (_) {}
     if (!mounted) return;
     Navigator.of(context).pushAndRemoveUntil(
@@ -159,10 +232,36 @@ class _HomeScreenState extends State<HomeScreen> {
     final department = _employeeProfile?['department']?.toString().replaceAll('_', ' ') ?? '';
 
     return Scaffold(
-      backgroundColor: AppColors.darkBlue,
+      backgroundColor: AppColors.darkBlue, 
       appBar: AppBar(
         title: Image.asset('assets/images/logo.png', height: 26, errorBuilder: (c, e, s) => const Text('NovaHR')),
         actions: [
+          // Theme Toggle Added Here
+          ValueListenableBuilder<ThemeMode>(
+            valueListenable: themeNotifier,
+            builder: (context, currentMode, _) {
+              final isDark = currentMode == ThemeMode.dark;
+              return Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                  child: DayNightSwitch(
+                    isDarkMode: isDark,
+                    onChanged: (val) {
+                      themeNotifier.value = val ? ThemeMode.dark : ThemeMode.light;
+                    },
+                  ),
+                ),
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.settings_rounded), 
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ForcePasswordChangeScreen(isVoluntary: true)),
+              );
+            },
+          ),
           IconButton(icon: const Icon(Icons.account_circle_rounded), onPressed: _showProfileDialog),
           IconButton(icon: const Icon(Icons.logout_rounded), onPressed: _logout),
         ],

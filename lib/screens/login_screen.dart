@@ -1,9 +1,9 @@
-// lib/screens/login_screen.dart
 import 'package:flutter/material.dart';
 
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import 'force_password_change_screen.dart';
+import 'forgot_password_screen.dart';
 import 'home_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -177,6 +177,15 @@ class _LoginScreenState extends State<LoginScreen> {
                               child: _isLoading
                                   ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: AppColors.darkBlue, strokeWidth: 2))
                                   : const Text('Sign In', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                          const SizedBox(height: 15),
+                          Center(
+                            child: TextButton(
+                              onPressed: () {
+                                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()));
+                              },
+                              child: const Text('Forgot Password?', style: TextStyle(color: AppColors.brightCyan, fontSize: 14)),
                             ),
                           ),
                         ],

@@ -5,6 +5,8 @@ import 'screens/login_screen.dart';
 import 'services/auth_service.dart';
 import 'theme/app_colors.dart';
 
+final ValueNotifier<ThemeMode> themeNotifier = ValueNotifier(ThemeMode.dark);
+
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const NovaHrApp());
@@ -15,31 +17,61 @@ class NovaHrApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'NovaHR Attendance',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        useMaterial3: true,
-        fontFamily: 'Roboto',
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: AppColors.brightCyan,
-          brightness: Brightness.dark,
-          surface: AppColors.darkPurple,
-        ),
-        scaffoldBackgroundColor: AppColors.darkBlue,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.transparent,
-          elevation: 0,
-          surfaceTintColor: Colors.transparent,
-          iconTheme: IconThemeData(color: Colors.white),
-          titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Colors.white),
-          bodyMedium: TextStyle(color: Colors.white),
-        ),
-      ),
-      home: const AuthGate(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (context, currentMode, _) {
+        return MaterialApp(
+          title: 'NovaHR Attendance',
+          debugShowCheckedModeBanner: false,
+          themeMode: currentMode,
+          
+          // Light Theme Setup
+          theme: ThemeData(
+            useMaterial3: true,
+            fontFamily: 'Roboto',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppColors.brightCyan,
+              brightness: Brightness.light,
+              surface: AppColors.background,
+            ),
+            scaffoldBackgroundColor: AppColors.background,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              iconTheme: IconThemeData(color: AppColors.foreground),
+              titleTextStyle: TextStyle(color: AppColors.foreground, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: AppColors.foreground),
+              bodyMedium: TextStyle(color: AppColors.foreground),
+            ),
+          ),
+
+          // Dark Theme Setup
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            fontFamily: 'Roboto',
+            colorScheme: ColorScheme.fromSeed(
+              seedColor: AppColors.brightCyan,
+              brightness: Brightness.dark,
+              surface: AppColors.darkPurple,
+            ),
+            scaffoldBackgroundColor: AppColors.darkBlue,
+            appBarTheme: const AppBarTheme(
+              backgroundColor: Colors.transparent,
+              elevation: 0,
+              iconTheme: IconThemeData(color: Colors.white),
+              titleTextStyle: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+            ),
+            textTheme: const TextTheme(
+              bodyLarge: TextStyle(color: Colors.white),
+              bodyMedium: TextStyle(color: Colors.white),
+            ),
+          ),
+          
+          home: const AuthGate(),
+        );
+      },
     );
   }
 }

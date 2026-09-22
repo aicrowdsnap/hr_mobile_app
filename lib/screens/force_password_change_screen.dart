@@ -1,11 +1,11 @@
-// lib/screens/force_password_change_screen.dart
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import 'home_screen.dart';
 
 class ForcePasswordChangeScreen extends StatefulWidget {
-  const ForcePasswordChangeScreen({super.key});
+  final bool isVoluntary;
+  const ForcePasswordChangeScreen({super.key, this.isVoluntary = false});
 
   @override
   State<ForcePasswordChangeScreen> createState() => _ForcePasswordChangeScreenState();
@@ -38,29 +38,46 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
     setState(() => _isLoading = true);
 
     try {
-      await _authService.forcePasswordChange(
-        currentPassword: _currentPasswordController.text,
-        newPassword: _newPasswordController.text,
-      );
+      if (widget.isVoluntary) {
+        await _authService.changePassword(
+          currentPassword: _currentPasswordController.text,
+          newPassword: _newPasswordController.text,
+        );
+      } else {
+        await _authService.forcePasswordChange(
+          currentPassword: _currentPasswordController.text,
+          newPassword: _newPasswordController.text,
+        );
+      }
 
       if (!mounted) return;
       
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Security credentials updated! Proceeding to dashboard.'),
+        SnackBar(
+          content: Text(widget.isVoluntary ? 'Password updated successfully!' : 'Security credentials updated! Proceeding to dashboard.'),
           backgroundColor: Colors.green,
         ),
       );
 
-      Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (_) => const HomeScreen()),
-        (route) => false,
-      );
+      if (widget.isVoluntary) {
+        Navigator.of(context).pop();
+      } else {
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const HomeScreen()),
+          (route) => false,
+        );
+      }
     } catch (e) {
       if (!mounted) return;
+      
+      String errorMsg = e.toString();
+      if (errorMsg.contains('Account security state does not require')) {
+        errorMsg = 'Your account does not require a mandatory rotation. Please use the standard change password feature.';
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString(), style: const TextStyle(color: Colors.white)),
+          content: Text(errorMsg, style: const TextStyle(color: Colors.white)),
           backgroundColor: Colors.red,
         ),
       );
@@ -77,7 +94,9 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
     if (!RegExp(r'[0-9]').hasMatch(value)) return 'Must contain numeric digit';
     if (!RegExp(r'[^A-Za-z0-9]').hasMatch(value)) return 'Must contain special character';
     if (value == _currentPasswordController.text) {
-      return 'New password cannot be the same as temporary password';
+      return widget.isVoluntary 
+        ? 'New password cannot be the same as current password'
+        : 'New password cannot be the same as temporary password';
     }
     return null;
   }
@@ -105,6 +124,16 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.darkBlue,
+      appBar: widget.isVoluntary 
+        ? AppBar(
+            backgroundColor: Colors.transparent,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back, color: Colors.white),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ) 
+        : null,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -113,7 +142,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
               constraints: const BoxConstraints(maxWidth: 450),
               child: Column(
                 children: [
-                  const Icon(Icons.security, size: 70, color: AppColors.brightCyan),
+                  Icon(widget.isVoluntary ? Icons.lock_reset : Icons.security, size: 70, color: AppColors.brightCyan),
                   const SizedBox(height: 24),
                   Container(
                     padding: const EdgeInsets.all(24),
@@ -129,10 +158,15 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('Security Update Required', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                          Text(
+                            widget.isVoluntary ? 'Change Password' : 'Security Update Required', 
+                            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)
+                          ),
                           const SizedBox(height: 8),
                           Text(
-                            'Your workplace credentials use a temporary system default password. Please choose a new secure password.', 
+                            widget.isVoluntary 
+                              ? 'Enter your current password and choose a new secure password.'
+                              : 'Your workplace credentials use a temporary system default password. Please choose a new secure password.', 
                             style: TextStyle(color: Colors.grey.shade400, fontSize: 13)
                           ),
                           const SizedBox(height: 24),
@@ -142,7 +176,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                             obscureText: _hideCurrent,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
-                              hint: 'Temporary Default Password', 
+                              hint: widget.isVoluntary ? 'Current Password' : 'Temporary Default Password', 
                               icon: Icons.lock_outline,
                               isHidden: _hideCurrent,
                               toggleVisibility: () => setState(() => _hideCurrent = !_hideCurrent)
@@ -156,7 +190,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                             obscureText: _hideNew,
                             style: const TextStyle(color: Colors.white),
                             decoration: _inputDecoration(
-                              hint: 'New Custom Password', 
+                              hint: 'New Secure Password', 
                               icon: Icons.vpn_key_outlined,
                               isHidden: _hideNew,
                               toggleVisibility: () => setState(() => _hideNew = !_hideNew)
@@ -195,7 +229,7 @@ class _ForcePasswordChangeScreenState extends State<ForcePasswordChangeScreen> {
                               ),
                               child: _isLoading
                                   ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                                  : const Text('Update Password & Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                  : Text(widget.isVoluntary ? 'Update Password' : 'Update Password & Continue', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             ),
                           ),
                         ],

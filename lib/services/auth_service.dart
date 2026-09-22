@@ -110,6 +110,62 @@ class AuthService {
     );
   }
 
+  Future<void> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    final response = await _api.postRest(
+      '/api/auth/change-password',
+      {
+        'currentPassword': currentPassword,
+        'newPassword': newPassword,
+        'revokeOtherSessions': true,
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      String message = 'Failed to update password';
+      try {
+        final error = jsonDecode(response.body);
+        if (error is Map && error['message'] != null) {
+          message = error['message'].toString();
+        }
+      } catch (_) {}
+      throw ApiException(message);
+    }
+  }
+
+  Future<void> forgotPassword({
+    required String identifier,
+    required String organizationSlug,
+  }) async {
+    final resolvedData = await _api.postTrpc(
+      'employee.resolveLoginCredentials',
+      {
+        'identifier': identifier.trim(),
+        'organizationSlug': organizationSlug.trim().toLowerCase(),
+      },
+    );
+
+    final resolvedEmail = resolvedData?['resolvedEmail']?.toString();
+
+    if (resolvedEmail == null || resolvedEmail.isEmpty) {
+      throw ApiException('Invalid user identifier or company slug.');
+    }
+
+    final response = await _api.postRest(
+      '/api/auth/forget-password',
+      {
+        'email': resolvedEmail,
+        'redirectTo': '/reset-password',
+      },
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw ApiException('Failed to process reset request.');
+    }
+  }
+
   Future<void> logout() async {
     try {
       await _api.postRest('/api/auth/sign-out', {});
