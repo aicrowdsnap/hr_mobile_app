@@ -1,5 +1,6 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import '../models/attendance_status.dart';
 import '../services/attendance_service.dart';
@@ -12,383 +13,790 @@ class AttendanceScreen extends StatefulWidget {
   State<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-class _AttendanceScreenState extends State<AttendanceScreen> {
-  final _attendanceService = AttendanceService();
-  AttendanceStatus? _attendance;
-  List<dynamic> _shifts = [];
-  Map<String, dynamic>? _todayRecord;
+class _AttendanceScreenState extends State<AttendanceScreen>
+    with WidgetsBindingObserver {
+  final AttendanceService _attendanceService = AttendanceService();
+
+  TodayAttendanceSnapshot? _snapshot;
   bool _loading = true;
+  bool _backgroundSyncing = false;
   bool _actionLoading = false;
   String? _error;
   String? _selectedShiftId;
+  Timer? _syncTimer;
+
+  static const Duration _colomboOffset =
+      Duration(hours: 5, minutes: 30);
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+
+    _syncTimer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _loadData(silent: true);
+    });
   }
 
-  Future<void> _loadData() async {
-    setState(() { _loading = true; _error = null; });
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _loadData(silent: true);
+    }
+  }
+
+  Future<void> _loadData({bool silent = false, bool force = false}) async {
+    if (!force &&
+        silent &&
+        (_backgroundSyncing || _loading || _actionLoading)) {
+      return;
+    }
+
+    if (silent) {
+      if (!mounted) return;
+      setState(() => _backgroundSyncing = true);
+    } else if (mounted) {
+      setState(() {
+        _loading = true;
+        _error = null;
+      });
+    }
+
     try {
-      final statusResult = await _attendanceService.getCurrentStatus();
-      final employeeData = statusResult['employee'] as Map<String, dynamic>?;
-      final employeeId = employeeData?['id']?.toString();
-
-      if (employeeId == null) throw Exception("Could not find employee profile.");
-
-      final slNow = DateTime.now().toUtc().add(const Duration(hours: 5, minutes: 30));
-      final todayStr = DateFormat('yyyy-MM-dd').format(slNow);
-
-      final startDate = DateTime.utc(slNow.year, slNow.month, 1).subtract(const Duration(hours: 5, minutes: 30));
-      final endDate = DateTime.utc(slNow.year, slNow.month + 1, 1).subtract(const Duration(hours: 5, minutes: 30));
-
-      final historyFuture = _attendanceService.getDailyAttendanceRecords(
-        employeeId: employeeId, 
-        year: slNow.year, 
-        month: slNow.month,
-      );
-      
-      final shiftsFuture = _attendanceService.getMyDailyShifts(
-        startDate: startDate.toIso8601String(),
-        endDate: endDate.toIso8601String(),
-      );
-
-      final results = await Future.wait([historyFuture, shiftsFuture]);
-      final history = results[0] as List<dynamic>;
-      final rawShifts = results[1] as List<dynamic>;
-
-      final shiftsMap = <String, dynamic>{};
-      for (var s in rawShifts) {
-        if (s['shiftDate'] != null) {
-          final localDate = DateTime.parse(s['shiftDate']).toLocal();
-          final dateStr = DateFormat('yyyy-MM-dd').format(localDate);
-          shiftsMap[dateStr] = s;
-        }
-      }
-
-      final todayShiftItem = shiftsMap[todayStr];
-      final shiftsList = todayShiftItem != null ? [todayShiftItem] : [];
+      final snapshot = await _attendanceService.getTodaySnapshot();
 
       if (!mounted) return;
 
-      setState(() {
-        _attendance = AttendanceStatus.fromJson(statusResult);
-        _shifts = shiftsList;
+      final availableShiftIds = snapshot.todayShifts
+          .map(_shiftFromAssignment)
+          .whereType<Map<String, dynamic>>()
+          .map((shift) => shift['id']?.toString())
+          .whereType<String>()
+          .where((id) => id.isNotEmpty)
+          .toList();
 
-        if (_shifts.isNotEmpty) {
-          final shiftObj = _shifts[0]['shift'] as Map<String, dynamic>?;
-          _selectedShiftId = shiftObj?['id']?.toString();
-        } else {
-          _selectedShiftId = null;
-        }
-        
-        _todayRecord = null;
-        for (var a in history) {
-          if (a['attendanceDate'] != null) {
-            final attendanceLocalDate = DateTime.parse(a['attendanceDate']).toLocal();
-            final dateStr = DateFormat('yyyy-MM-dd').format(attendanceLocalDate);
-            if (dateStr == todayStr) {
-              _todayRecord = a as Map<String, dynamic>;
-              break;
-            }
-          }
-        }
+      String? nextSelectedShiftId = _selectedShiftId;
+      if (availableShiftIds.isEmpty) {
+        nextSelectedShiftId = null;
+      } else if (nextSelectedShiftId == null ||
+          !availableShiftIds.contains(nextSelectedShiftId)) {
+        nextSelectedShiftId = availableShiftIds.first;
+      }
+
+      setState(() {
+        _snapshot = snapshot;
+        _selectedShiftId = nextSelectedShiftId;
+        _error = null;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.toString());
+
+      if (!silent || _snapshot == null) {
+        setState(() => _error = _cleanErrorMessage(e));
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        if (silent) {
+          setState(() => _backgroundSyncing = false);
+        } else {
+          _backgroundSyncing = false;
+          setState(() => _loading = false);
+        }
+      } else {
+        _backgroundSyncing = false;
+      }
     }
   }
 
   Future<void> _clockIn() async {
-    if (_shifts.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('No shifts assigned for today. Cannot clock in.'), 
-        backgroundColor: Colors.orange,
-      ));
+    final snapshot = _snapshot;
+
+    if (snapshot == null || !snapshot.hasShiftToday) {
+      _showMessage(
+        'No shift is assigned to you for today. Please contact HR.',
+        isError: true,
+      );
+      return;
+    }
+
+    if (snapshot.hasAttendanceToday) {
+      _showMessage(
+        'An attendance record already exists for today.',
+        isError: true,
+      );
+      await _loadData(silent: true, force: true);
       return;
     }
 
     if (_selectedShiftId == null || _selectedShiftId!.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Please select a shift before clocking in'), 
-        backgroundColor: Colors.orange,
-      ));
+      _showMessage(
+        'Please select a shift before clocking in.',
+        isError: true,
+      );
       return;
     }
+
     await _performAttendanceAction(clockIn: true);
   }
 
   Future<void> _clockOut() async {
+    if (_snapshot?.isClockedIn != true) {
+      _showMessage(
+        'No active clock-in record was found.',
+        isError: true,
+      );
+      await _loadData(silent: true, force: true);
+      return;
+    }
+
     await _performAttendanceAction(clockIn: false);
   }
 
-  Future<void> _performAttendanceAction({required bool clockIn}) async {
+  Future<void> _endBreak() async {
+    if (_actionLoading) return;
+
     setState(() => _actionLoading = true);
+
+    try {
+      await _attendanceService.endBreak();
+      await _loadData(silent: true, force: true);
+
+      if (!mounted) return;
+      _showMessage('Break ended. Attendance is active again.');
+    } catch (e) {
+      if (!mounted) return;
+      await _loadData(silent: true, force: true);
+
+      if (!mounted) return;
+      _showMessage(_cleanErrorMessage(e), isError: true);
+    } finally {
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
+    }
+  }
+
+  Future<void> _performAttendanceAction({required bool clockIn}) async {
+    if (_actionLoading) return;
+
+    setState(() => _actionLoading = true);
+
     try {
       if (clockIn) {
         await _attendanceService.clockIn(shiftId: _selectedShiftId);
       } else {
         await _attendanceService.clockOut();
       }
-      await _loadData();
+
+      await _loadData(silent: true, force: true);
+
       if (!mounted) return;
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(clockIn ? 'Clock-in successful' : 'Clock-out successful', style: const TextStyle(color: Colors.white)),
-          backgroundColor: AppColors.primaryCyan,
-          behavior: SnackBarBehavior.floating, 
-          margin: const EdgeInsets.all(16),
-        ));
+      _showMessage(
+        clockIn ? 'Clock-in successful.' : 'Clock-out successful.',
+      );
     } catch (e) {
       if (!mounted) return;
-      
-      String errorMessage = e.toString();
-      
-      if (errorMessage.contains('Current time is')) {
-        try {
-          final RegExp timeRegex = RegExp(r'Current time is (\d{2}:\d{2}:\d{2})');
-          final match = timeRegex.firstMatch(errorMessage);
-          
-          if (match != null) {
-            final utcTimeStr = match.group(1)!;
-            final now = DateTime.now();
-            final utcDate = DateTime.parse('${now.toString().split(' ')[0]} $utcTimeStr');
-            
-            final localDate = utcDate.add(const Duration(hours: 5, minutes: 30));
-            final localTimeStr = DateFormat('HH:mm:ss').format(localDate);
-            
-            errorMessage = errorMessage.replaceAll(utcTimeStr, '$localTimeStr (Local Time)');
-          }
-        } catch (_) {
-        }
-      }
 
-      ScaffoldMessenger.of(context)
-        ..hideCurrentSnackBar()
-        ..showSnackBar(SnackBar(
-          content: Text(errorMessage, style: const TextStyle(color: Colors.white)),
-          backgroundColor: AppColors.error, 
-          behavior: SnackBarBehavior.floating, 
-          margin: const EdgeInsets.all(16),
-        ));
+      // Refresh once after a failed action as well. This resolves cases where
+      // the hosted web app changed the attendance state before the mobile app.
+      await _loadData(silent: true, force: true);
+
+      if (!mounted) return;
+      _showMessage(_cleanErrorMessage(e), isError: true);
     } finally {
-      if (mounted) setState(() => _actionLoading = false);
+      if (mounted) {
+        setState(() => _actionLoading = false);
+      }
     }
   }
 
-  String _formatWorkingHours() {
-    int totalMins = _attendance?.totalWorkingMinutes ?? 0;
-    
-    if ((_attendance?.isClockedIn ?? false) && _attendance?.clockInTime != null) {
-      try {
-        final cleanTime = _attendance!.clockInTime!.replaceAll('Z', '').replaceAll('z', '');
-        final clockInTime = DateTime.parse(cleanTime);
-        totalMins = DateTime.now().difference(clockInTime).inMinutes;
-      } catch (_) {}
+  String _cleanErrorMessage(Object error) {
+    var message = error.toString().trim();
+
+    if (message.startsWith('ApiException:')) {
+      message = message.substring('ApiException:'.length).trim();
+    }
+    if (message.startsWith('Exception:')) {
+      message = message.substring('Exception:'.length).trim();
     }
 
-    if (totalMins <= 0) return '--';
+    // The hosted API already reports shift validation time in Asia/Colombo.
+    // Do not add another +05:30 here.
+    return message;
+  }
 
-    final hours = totalMins ~/ 60;
-    final mins = totalMins % 60;
+  void _showMessage(String message, {bool isError = false}) {
+    if (!mounted) return;
 
-    if (hours == 0) return '$mins mins';
-    if (mins == 0) return '$hours hrs';
-    return '$hours hrs $mins mins';
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            message,
+            style: const TextStyle(color: Colors.white),
+          ),
+          backgroundColor: isError ? AppColors.error : AppColors.primaryCyan,
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.all(16),
+        ),
+      );
+  }
+
+  Map<String, dynamic>? _shiftFromAssignment(
+    Map<String, dynamic> assignment,
+  ) {
+    final rawShift = assignment['shift'];
+    if (rawShift is Map) {
+      return Map<String, dynamic>.from(rawShift);
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? get _selectedShift {
+    final snapshot = _snapshot;
+    if (snapshot == null || _selectedShiftId == null) return null;
+
+    for (final assignment in snapshot.todayShifts) {
+      final shift = _shiftFromAssignment(assignment);
+      if (shift?['id']?.toString() == _selectedShiftId) {
+        return shift;
+      }
+    }
+
+    return null;
+  }
+
+  DateTime _colomboWallClockNow() {
+    final colombo = DateTime.now().toUtc().add(_colomboOffset);
+    return DateTime.utc(
+      colombo.year,
+      colombo.month,
+      colombo.day,
+      colombo.hour,
+      colombo.minute,
+      colombo.second,
+    );
+  }
+
+  DateTime? _parseServerWallClock(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+
+    try {
+      var clean = value.trim();
+      clean = clean.replaceFirst(RegExp(r'[zZ]$'), '');
+      clean = clean.replaceFirst(RegExp(r'([+-]\d{2}:\d{2})$'), '');
+
+      final parsed = DateTime.parse(clean);
+      return DateTime.utc(
+        parsed.year,
+        parsed.month,
+        parsed.day,
+        parsed.hour,
+        parsed.minute,
+        parsed.second,
+      );
+    } catch (_) {
+      return null;
+    }
   }
 
   String _formatTime(String? value) {
-    if (value == null || value.trim().isEmpty) return '--';
-    try {
-      final cleanValue = value.replaceAll('Z', '').replaceAll('z', '');
-      DateTime dateTime = DateTime.parse(cleanValue);
-      final hour = dateTime.hour == 0 ? 12 : dateTime.hour > 12 ? dateTime.hour - 12 : dateTime.hour;
-      final minute = dateTime.minute.toString().padLeft(2, '0');
-      final period = dateTime.hour >= 12 ? 'PM' : 'AM';
-      return '$hour:$minute $period';
-    } catch (_) { return value; }
+    final dateTime = _parseServerWallClock(value);
+    if (dateTime == null) return '--';
+
+    final hour = dateTime.hour == 0
+        ? 12
+        : dateTime.hour > 12
+            ? dateTime.hour - 12
+            : dateTime.hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = dateTime.hour >= 12 ? 'PM' : 'AM';
+
+    return '$hour:$minute $period';
+  }
+
+  String _formatWorkedTime(AttendanceStatus attendance) {
+    int? totalMinutes = attendance.totalWorkingMinutes;
+
+    if (attendance.isClockedIn && attendance.clockInTime != null) {
+      final clockIn = _parseServerWallClock(attendance.clockInTime);
+      if (clockIn != null) {
+        totalMinutes = _colomboWallClockNow().difference(clockIn).inMinutes;
+      }
+    }
+
+    if (totalMinutes == null || totalMinutes < 0) return '--';
+
+    final hours = totalMinutes ~/ 60;
+    final minutes = totalMinutes % 60;
+
+    if (hours == 0) return '$minutes mins';
+    if (minutes == 0) return '$hours hrs';
+    return '$hours hrs $minutes mins';
+  }
+
+  String _shiftLabel(Map<String, dynamic>? shift) {
+    if (shift == null) return 'Assigned Shift';
+    return shift['name']?.toString() ?? 'Assigned Shift';
+  }
+
+  String _shiftTime(Map<String, dynamic>? shift) {
+    if (shift == null) return 'Time not available';
+
+    final start = shift['startTime']?.toString();
+    final end = shift['endTime']?.toString();
+
+    if (start == null || end == null) return 'Time not available';
+    return '$start - $end';
   }
 
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final isClockedIn = _attendance?.isClockedIn ?? false;
-    final hasCompletedToday = !isClockedIn && _todayRecord != null && _todayRecord!['clockOutTime'] != null;
-    final hasShiftAssigned = _shifts.isNotEmpty;
 
-    // Define UI dynamic headers
-    IconData statusIcon = Icons.access_time_rounded;
-    Color statusColor = AppColors.info;
-    String mainTitle = 'You are not clocked in';
-    String subTitle = 'Select your shift and clock in to start.';
+    if (_loading && _snapshot == null) {
+      return Scaffold(
+        backgroundColor:
+            isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppBar(title: const Text('Mark Attendance')),
+        body: const Center(
+          child: CircularProgressIndicator(color: AppColors.primaryCyan),
+        ),
+      );
+    }
+
+    if (_error != null && _snapshot == null) {
+      return Scaffold(
+        backgroundColor:
+            isDark ? AppColors.darkBackground : AppColors.lightBackground,
+        appBar: AppBar(title: const Text('Mark Attendance')),
+        body: RefreshIndicator(
+          onRefresh: () => _loadData(),
+          child: ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            children: [
+              const SizedBox(height: 100),
+              _ErrorState(
+                message: _error!,
+                onRetry: () => _loadData(),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final snapshot = _snapshot;
+    final attendance = snapshot?.attendance ??
+        const AttendanceStatus(status: 'clocked_out');
+
+    final isClockedIn = snapshot?.isClockedIn ?? attendance.isClockedIn;
+    final isOnBreak = attendance.isOnBreak;
+    final hasCompletedToday = snapshot?.hasCompletedToday ?? false;
+    final hasShiftAssigned = snapshot?.hasShiftToday ?? false;
+    final hasAttendanceToday = snapshot?.hasAttendanceToday ?? false;
+
+    final selectedShift = _selectedShift ??
+        (snapshot?.primaryShiftAssignment == null
+            ? null
+            : _shiftFromAssignment(snapshot!.primaryShiftAssignment!));
+
+    final canClockIn =
+        hasShiftAssigned && !hasAttendanceToday && !hasCompletedToday;
+
+    late final Color statusColor;
+    late final IconData statusIcon;
+    late final String title;
+    late final String subtitle;
+    late final String badge;
 
     if (hasCompletedToday) {
-      statusIcon = Icons.check_circle_rounded;
       statusColor = AppColors.success;
-      mainTitle = 'Shift Completed';
-      subTitle = 'You have already completed your shift for today.';
+      statusIcon = Icons.check_circle_rounded;
+      title = 'Shift Completed';
+      subtitle = 'You have completed today\'s attendance.';
+      badge = 'COMPLETED';
+    } else if (isOnBreak) {
+      statusColor = AppColors.warning;
+      statusIcon = Icons.coffee_rounded;
+      title = 'Break In Progress';
+      subtitle = 'Your attendance is active. End the break before clocking out.';
+      badge = 'ON BREAK';
     } else if (isClockedIn) {
-      statusIcon = Icons.how_to_reg_rounded;
       statusColor = AppColors.primaryCyan;
-      mainTitle = 'You are currently clocked in';
-      subTitle = 'Your attendance is active for today.';
-    } else if (!hasShiftAssigned) {
-      statusIcon = Icons.event_busy_rounded;
-      statusColor = isDark ? AppColors.darkIcon : AppColors.lightIcon;
-      mainTitle = 'No Shift Assigned';
-      subTitle = 'You do not have a shift scheduled for today.';
-    } else {
+      statusIcon = Icons.how_to_reg_rounded;
+      title = 'Currently Clocked In';
+      subtitle = 'Your attendance is active and work time is running.';
+      badge = 'WORKING';
+    } else if (hasShiftAssigned && !hasAttendanceToday) {
+      statusColor = AppColors.warning;
       statusIcon = Icons.schedule_rounded;
-      statusColor = Colors.orange;
-      mainTitle = 'Action Required';
-      subTitle = 'Select your shift and clock in to start.';
+      title = 'Shift Assigned';
+      subtitle = 'You have not clocked in yet. Start when you are ready.';
+      badge = 'READY';
+    } else if (hasAttendanceToday) {
+      statusColor = AppColors.info;
+      statusIcon = Icons.info_outline_rounded;
+      title = 'Attendance Recorded';
+      subtitle = 'An attendance record already exists for today.';
+      badge = 'RECORDED';
+    } else {
+      statusColor =
+          isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary;
+      statusIcon = Icons.event_busy_rounded;
+      title = 'No Shift Assigned';
+      subtitle = 'There is no shift assigned to you for today.';
+      badge = 'NO SHIFT';
     }
-    
-    final displayClockIn = isClockedIn 
-        ? _attendance?.clockInTime 
-        : (_attendance?.clockInTime ?? _todayRecord?['clockInTime']?.toString());
-        
-    final displayClockOut = isClockedIn 
-        ? _attendance?.clockOutTime 
-        : (_attendance?.clockOutTime ?? _todayRecord?['clockOutTime']?.toString());
-
-    final bool canClockIn = _shifts.isNotEmpty;
 
     return Scaffold(
-      backgroundColor: isDark ? AppColors.darkBackground : AppColors.lightBackground,
-      appBar: AppBar(title: const Text('Mark Attendance')),
+      backgroundColor:
+          isDark ? AppColors.darkBackground : AppColors.lightBackground,
+      appBar: AppBar(
+        title: const Text('Mark Attendance'),
+        actions: [
+          if (_backgroundSyncing)
+            const Padding(
+              padding: EdgeInsets.only(right: 16),
+              child: Center(
+                child: SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: AppColors.primaryCyan,
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
       body: RefreshIndicator(
-        onRefresh: _loadData,
+        onRefresh: () => _loadData(),
         child: ListView(
-          padding: const EdgeInsets.all(20),
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
             Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: isDark ? AppColors.darkSurface : AppColors.lightSurface, borderRadius: BorderRadius.circular(24)),
+              padding: const EdgeInsets.all(22),
+              decoration: BoxDecoration(
+                color: isDark
+                    ? AppColors.darkSurface
+                    : AppColors.lightSurface,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(
+                  color: statusColor.withValues(alpha: 0.35),
+                ),
+              ),
               child: Column(
                 children: [
                   Container(
-                    width: 90, height: 90,
+                    width: 86,
+                    height: 86,
                     decoration: BoxDecoration(
-                      color: hasCompletedToday ? AppColors.success.withValues(alpha: 0.15) 
-                           : isClockedIn ? AppColors.primaryCyan.withValues(alpha: 0.15) 
-                           : AppColors.info.withValues(alpha: 0.15),
+                      color: statusColor.withValues(alpha: 0.14),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
-                      hasCompletedToday ? Icons.check_circle_rounded : isClockedIn ? Icons.how_to_reg_rounded : Icons.access_time_rounded,
-                      size: 48, color: hasCompletedToday ? AppColors.success : isClockedIn ? AppColors.primaryCyan : AppColors.info,
+                      statusIcon,
+                      size: 46,
+                      color: statusColor,
                     ),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 18),
                   Text(
-                    hasCompletedToday ? 'Shift Completed' : isClockedIn ? 'You are currently clocked in' : 'You are not clocked in',
-                    textAlign: TextAlign.center, style: TextStyle(fontSize: 21, fontWeight: FontWeight.bold, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
+                    title,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 21,
+                      fontWeight: FontWeight.bold,
+                      color: isDark
+                          ? AppColors.darkTextPrimary
+                          : AppColors.lightTextPrimary,
+                    ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    hasCompletedToday ? 'You have already completed your shift for today.' : isClockedIn ? 'Your attendance is active for today.' : 'Select your shift and clock in to start.',
-                    textAlign: TextAlign.center, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 14),
+                    subtitle,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: isDark
+                          ? AppColors.darkTextSecondary
+                          : AppColors.lightTextSecondary,
+                      fontSize: 14,
+                      height: 1.4,
+                    ),
                   ),
-                  const SizedBox(height: 28),
-                  
-                  if (!isClockedIn && !hasCompletedToday && !_loading) ...[
-                    if (_shifts.isEmpty)
-                      Container(
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: 0.1), 
-                          borderRadius: BorderRadius.circular(14), 
-                          border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.28),
+                      ),
+                    ),
+                    child: Text(
+                      badge,
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                  ),
+                  if (hasShiftAssigned) ...[
+                    const SizedBox(height: 24),
+                    _ShiftCard(
+                      shiftName: _shiftLabel(selectedShift),
+                      shiftTime: _shiftTime(selectedShift),
+                      color: statusColor,
+                    ),
+                  ],
+                  if (!isClockedIn &&
+                      !hasCompletedToday &&
+                      !hasAttendanceToday &&
+                      (snapshot?.todayShifts.length ?? 0) > 1) ...[
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedShiftId,
+                      isExpanded: true,
+                      decoration: InputDecoration(
+                        labelText: 'Select today\'s shift',
+                        labelStyle: TextStyle(
+                          color: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
                         ),
-                        child: Row(
-                          children: [
-                            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Text(
-                                'No shifts assigned to you for today. Please contact HR to assign a shift.', 
-                                style: TextStyle(color: isDark ? AppColors.warning : Colors.orange.shade800, fontSize: 13),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(14),
+                          borderSide: BorderSide(
+                            color: isDark
+                                ? AppColors.darkBorder
+                                : AppColors.lightBorder,
+                          ),
+                        ),
+                      ),
+                      items: snapshot!.todayShifts.map((assignment) {
+                        final shift = _shiftFromAssignment(assignment);
+                        final id = shift?['id']?.toString() ?? '';
+                        return DropdownMenuItem<String>(
+                          value: id,
+                          child: Text(
+                            '${_shiftLabel(shift)} (${_shiftTime(shift)})',
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (value) {
+                        setState(() => _selectedShiftId = value);
+                      },
+                    ),
+                  ],
+                  if (!hasShiftAssigned &&
+                      !isClockedIn &&
+                      !hasCompletedToday) ...[
+                    const SizedBox(height: 22),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.warning.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(
+                          color: AppColors.warning.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(
+                            Icons.info_outline_rounded,
+                            color: AppColors.warning,
+                            size: 21,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Clock in is unavailable because no shift is assigned for today. Please contact HR if you expected a shift.',
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                                fontSize: 12.5,
+                                height: 1.4,
                               ),
                             ),
-                          ],
-                        ),
-                      )
-                    else
-                      Theme(
-                        data: Theme.of(context).copyWith(canvasColor: isDark ? AppColors.darkSurface : AppColors.lightSurface),
-                        child: DropdownButtonFormField<String>(
-                          value: _selectedShiftId,
-                          style: TextStyle(color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary),
-                          decoration: InputDecoration(
-                            labelText: 'Select Shift',
-                            labelStyle: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
-                            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(14), borderSide: BorderSide(color: isDark ? AppColors.darkBorder : AppColors.lightBorder)),
                           ),
-                          items: _shifts.map((item) {
-                            final shift = item['shift'] as Map<String, dynamic>;
-                            return DropdownMenuItem<String>(
-                              value: shift['id'].toString(),
-                              child: Text('${shift['name']} (${shift['startTime']} - ${shift['endTime']})', style: const TextStyle(fontSize: 14)),
-                            );
-                          }).toList(),
-                          onChanged: (val) => setState(() => _selectedShiftId = val),
+                        ],
+                      ),
+                    ),
+                  ],
+                  if (isClockedIn || hasCompletedToday) ...[
+                    const SizedBox(height: 24),
+                    _Times(
+                      clockIn: _formatTime(attendance.clockInTime),
+                      clockOut: isClockedIn
+                          ? 'Working'
+                          : _formatTime(attendance.clockOutTime),
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: isDark
+                            ? AppColors.darkSurfaceHighlight
+                            : AppColors.lightSurfaceHighlight,
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.timelapse_rounded,
+                            color: statusColor,
+                            size: 21,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              isOnBreak
+                                  ? 'Elapsed Since Clock In'
+                                  : isClockedIn
+                                      ? 'Current Worked Time'
+                                      : 'Total Worked Time',
+                              style: TextStyle(
+                                color: isDark
+                                    ? AppColors.darkTextSecondary
+                                    : AppColors.lightTextSecondary,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            _formatWorkedTime(attendance),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  if (hasCompletedToday)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 15),
+                      decoration: BoxDecoration(
+                        color: AppColors.success.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(
+                          color: AppColors.success.withValues(alpha: 0.25),
                         ),
                       ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  if (_loading) const CircularProgressIndicator(color: AppColors.primaryCyan)
-                  else if (_error != null)
-                    Column(
-                      children: [
-                        const Icon(Icons.error_outline, color: AppColors.error, size: 38),
-                        const SizedBox(height: 8),
-                        Text(_error!, textAlign: TextAlign.center, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12)),
-                      ],
+                      child: const Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.verified_rounded,
+                            color: AppColors.success,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            'Attendance completed for today',
+                            style: TextStyle(
+                              color: AppColors.success,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     )
-                  else ...[
-                    _Times(clockIn: _formatTime(displayClockIn), clockOut: _formatTime(displayClockOut)),
-                    if (isClockedIn) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(14),
-                        decoration: BoxDecoration(
-                          color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('Active Worked Time:', style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 13)),
-                            Text(_formatWorkingHours(), style: const TextStyle(color: AppColors.primaryCyan, fontSize: 15, fontWeight: FontWeight.bold)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                  
-                  if (!_loading && !hasCompletedToday)
-                  const SizedBox(height: 20),
+                  else
                     SizedBox(
-                      width: double.infinity, height: 56,
+                      width: double.infinity,
+                      height: 56,
                       child: ElevatedButton.icon(
-                        onPressed: _actionLoading || (!isClockedIn && !canClockIn) ? null : isClockedIn ? _clockOut : _clockIn,
-                        icon: _actionLoading ? const SizedBox(width: 21, height: 21, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                            : Icon(isClockedIn ? Icons.logout_rounded : Icons.login_rounded),
-                        label: Text(_actionLoading ? 'Processing...' : isClockedIn ? 'Clock Out' : 'Clock In', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                        onPressed: _actionLoading
+                            ? null
+                            : isOnBreak
+                                ? _endBreak
+                                : isClockedIn
+                                    ? _clockOut
+                                    : canClockIn
+                                        ? _clockIn
+                                        : null,
+                        icon: _actionLoading
+                            ? const SizedBox(
+                                width: 21,
+                                height: 21,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Icon(
+                                isOnBreak
+                                    ? Icons.play_circle_outline_rounded
+                                    : isClockedIn
+                                        ? Icons.logout_rounded
+                                        : hasShiftAssigned
+                                            ? Icons.login_rounded
+                                            : Icons.event_busy_rounded,
+                              ),
+                        label: Text(
+                          _actionLoading
+                              ? 'Processing...'
+                              : isOnBreak
+                                  ? 'End Break'
+                                  : isClockedIn
+                                      ? 'Clock Out'
+                                      : hasShiftAssigned
+                                          ? 'Clock In'
+                                          : 'No Shift Assigned',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: isClockedIn ? AppColors.error : AppColors.primaryCyan,
-                          disabledBackgroundColor: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight,
+                          backgroundColor: isOnBreak
+                              ? AppColors.warning
+                              : isClockedIn
+                                  ? AppColors.error
+                                  : AppColors.primaryCyan,
+                          disabledBackgroundColor: isDark
+                              ? AppColors.darkSurfaceHighlight
+                              : AppColors.lightSurfaceHighlight,
                           foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
+                          disabledForegroundColor: isDark
+                              ? AppColors.darkTextSecondary
+                              : AppColors.lightTextSecondary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          elevation: 0,
                         ),
                       ),
                     ),
@@ -402,16 +810,109 @@ class _AttendanceScreenState extends State<AttendanceScreen> {
   }
 }
 
+class _ShiftCard extends StatelessWidget {
+  final String shiftName;
+  final String shiftTime;
+  final Color color;
+
+  const _ShiftCard({
+    required this.shiftName,
+    required this.shiftTime,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.darkSurfaceHighlight
+            : AppColors.lightSurfaceHighlight,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isDark ? AppColors.darkBorder : AppColors.lightBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(9),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(
+              Icons.work_history_outlined,
+              color: color,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  shiftName,
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextPrimary
+                        : AppColors.lightTextPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  shiftTime,
+                  style: TextStyle(
+                    color: isDark
+                        ? AppColors.darkTextSecondary
+                        : AppColors.lightTextSecondary,
+                    fontSize: 12.5,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _Times extends StatelessWidget {
-  final String clockIn, clockOut;
-  const _Times({required this.clockIn, required this.clockOut});
+  final String clockIn;
+  final String clockOut;
+
+  const _Times({
+    required this.clockIn,
+    required this.clockOut,
+  });
+
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(child: _TimeBox(icon: Icons.login_rounded, title: 'Clock In', time: clockIn)),
-        const SizedBox(width: 14),
-        Expanded(child: _TimeBox(icon: Icons.logout_rounded, title: 'Clock Out', time: clockOut)),
+        Expanded(
+          child: _TimeBox(
+            icon: Icons.login_rounded,
+            title: 'Clock In',
+            time: clockIn,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: _TimeBox(
+            icon: Icons.logout_rounded,
+            title: 'Clock Out',
+            time: clockOut,
+          ),
+        ),
       ],
     );
   }
@@ -419,21 +920,117 @@ class _Times extends StatelessWidget {
 
 class _TimeBox extends StatelessWidget {
   final IconData icon;
-  final String title, time;
-  const _TimeBox({required this.icon, required this.title, required this.time});
+  final String title;
+  final String time;
+
+  const _TimeBox({
+    required this.icon,
+    required this.title,
+    required this.time,
+  });
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: isDark ? AppColors.darkSurfaceHighlight : AppColors.lightSurfaceHighlight, borderRadius: BorderRadius.circular(16)),
+      decoration: BoxDecoration(
+        color: isDark
+            ? AppColors.darkSurfaceHighlight
+            : AppColors.lightSurfaceHighlight,
+        borderRadius: BorderRadius.circular(16),
+      ),
       child: Column(
         children: [
-          Icon(icon, color: AppColors.info),
+          Icon(
+            icon,
+            color: AppColors.info,
+            size: 20,
+          ),
           const SizedBox(height: 7),
-          Text(title, style: TextStyle(color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary, fontSize: 12)),
+          Text(
+            title,
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
+              fontSize: 12,
+            ),
+          ),
           const SizedBox(height: 5),
-          Text(time, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary)),
+          Text(
+            time,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 17,
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  final String message;
+  final Future<void> Function() onRetry;
+
+  const _ErrorState({
+    required this.message,
+    required this.onRetry,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    return Container(
+      padding: const EdgeInsets.all(22),
+      decoration: BoxDecoration(
+        color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.25)),
+      ),
+      child: Column(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.error,
+            size: 42,
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Could not load attendance',
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.darkTextPrimary
+                  : AppColors.lightTextPrimary,
+              fontSize: 17,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: isDark
+                  ? AppColors.darkTextSecondary
+                  : AppColors.lightTextSecondary,
+              fontSize: 12.5,
+            ),
+          ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            onPressed: onRetry,
+            icon: const Icon(Icons.refresh_rounded),
+            label: const Text('Retry'),
+          ),
         ],
       ),
     );

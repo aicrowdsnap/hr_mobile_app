@@ -91,7 +91,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
   }
 
   Color _getStatusColor(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'approved':
         return AppColors.success;
       case 'rejected':
@@ -103,6 +103,65 @@ class _LeaveScreenState extends State<LeaveScreen> {
       default:
         return Colors.grey;
     }
+  }
+
+  String _getLeaveTypeName(dynamic request) {
+    if (request is! Map) return 'Leave Request';
+
+    // 1. Prefer a name returned directly by the leave.list API.
+    final directName = request['leaveTypeName']?.toString().trim();
+    if (directName != null && directName.isNotEmpty) {
+      return directName;
+    }
+
+    // 2. Support APIs that return leaveType as an object.
+    final rawLeaveType = request['leaveType'];
+    if (rawLeaveType is Map) {
+      final nestedName = rawLeaveType['name']?.toString().trim();
+      if (nestedName != null && nestedName.isNotEmpty) {
+        return nestedName;
+      }
+    }
+
+    // 3. Resolve the leave type ID used by the request against
+    //    leave.getAvailableLeaveTypes, which returns id + name.
+    final leaveTypeId = request['leaveTypeId']?.toString() ??
+        (rawLeaveType is Map
+            ? rawLeaveType['id']?.toString()
+            : rawLeaveType?.toString());
+
+    if (leaveTypeId != null && leaveTypeId.isNotEmpty) {
+      for (final type in _availableTypes) {
+        if (type is! Map) continue;
+
+        if (type['id']?.toString() == leaveTypeId) {
+          final name = type['name']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            return name;
+          }
+        }
+      }
+
+      // 4. The balance response can also contain the friendly leave name.
+      for (final balance in _balances) {
+        if (balance is! Map) continue;
+
+        final balanceId = balance['leaveTypeId']?.toString() ??
+            balance['leaveType']?.toString() ??
+            balance['id']?.toString();
+
+        if (balanceId == leaveTypeId) {
+          final name = balance['leaveTypeName']?.toString().trim() ??
+              balance['name']?.toString().trim();
+          if (name != null && name.isNotEmpty) {
+            return name;
+          }
+        }
+      }
+    }
+
+    // Never show a UUID/identifier to the user.
+    return 'Leave Request';
   }
 
   @override
@@ -175,7 +234,7 @@ class _LeaveScreenState extends State<LeaveScreen> {
                               children: [
                                 Expanded(
                                   child: _StatCard(
-                                    title: 'Total Requests',
+                                    title: 'Requests',
                                     count: '$totalRequests',
                                     bgColor: AppColors.skyBlue.withValues(alpha: 0.08),
                                     iconColor: AppColors.skyBlue,
@@ -345,34 +404,45 @@ class _LeaveScreenState extends State<LeaveScreen> {
                               itemCount: _requests.length,
                               itemBuilder: (context, index) {
                                 final req = _requests[index];
-                                final status = req['status'] ?? 'pending';
+                                final status =
+                                    (req['status'] ?? 'pending').toString().toLowerCase();
+                                final leaveTypeName = _getLeaveTypeName(req);
+
                                 return Container(
                                   margin: const EdgeInsets.only(bottom: 12),
                                   padding: const EdgeInsets.all(16),
                                   decoration: BoxDecoration(
-                                    color: isDark ? AppColors.darkSurface : AppColors.lightSurface,
+                                    color: isDark
+                                        ? AppColors.darkSurface
+                                        : AppColors.lightSurface,
                                     borderRadius: BorderRadius.circular(16),
                                   ),
                                   child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
+                                    crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
                                       Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Text(
-                                            req['leaveType']
-                                                .toString()
-                                                .toUpperCase(),
-                                            style: TextStyle(
+                                          Expanded(
+                                            child: Text(
+                                              leaveTypeName,
+                                              maxLines: 2,
+                                              overflow: TextOverflow.ellipsis,
+                                              style: TextStyle(
                                                 fontWeight: FontWeight.bold,
-                                                color: isDark ? AppColors.darkTextPrimary : AppColors.lightTextPrimary,
-                                                fontSize: 15),
+                                                color: isDark
+                                                    ? AppColors.darkTextPrimary
+                                                    : AppColors.lightTextPrimary,
+                                                fontSize: 15,
+                                              ),
+                                            ),
                                           ),
+                                          const SizedBox(width: 10),
                                           Container(
                                             padding: const EdgeInsets.symmetric(
-                                                horizontal: 10, vertical: 4),
+                                              horizontal: 10,
+                                              vertical: 4,
+                                            ),
                                             decoration: BoxDecoration(
                                               color: _getStatusColor(status)
                                                   .withValues(alpha: 0.15),
@@ -382,25 +452,36 @@ class _LeaveScreenState extends State<LeaveScreen> {
                                             child: Text(
                                               status.toUpperCase(),
                                               style: TextStyle(
-                                                  color:
-                                                      _getStatusColor(status),
-                                                  fontSize: 10,
-                                                  fontWeight: FontWeight.bold),
+                                                color: _getStatusColor(status),
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
                                             ),
                                           ),
                                         ],
                                       ),
                                       const SizedBox(height: 8),
                                       Row(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
                                         children: [
-                                          Icon(Icons.calendar_today,
-                                              size: 14, color: isDark ? AppColors.darkIcon : AppColors.lightIcon),
+                                          Icon(
+                                            Icons.calendar_today,
+                                            size: 14,
+                                            color: isDark
+                                                ? AppColors.darkIcon
+                                                : AppColors.lightIcon,
+                                          ),
                                           const SizedBox(width: 6),
-                                          Text(
-                                            '${req['startDate']?.toString().split('T')[0]} to ${req['endDate']?.toString().split('T')[0]} (${req['totalDays']} days)',
-                                            style: TextStyle(
-                                                color: isDark ? AppColors.darkTextSecondary : AppColors.lightTextSecondary,
-                                                fontSize: 13),
+                                          Expanded(
+                                            child: Text(
+                                              '${req['startDate']?.toString().split('T')[0]} to ${req['endDate']?.toString().split('T')[0]} (${req['totalDays']} days)',
+                                              style: TextStyle(
+                                                color: isDark
+                                                    ? AppColors.darkTextSecondary
+                                                    : AppColors.lightTextSecondary,
+                                                fontSize: 13,
+                                              ),
+                                            ),
                                           ),
                                         ],
                                       ),

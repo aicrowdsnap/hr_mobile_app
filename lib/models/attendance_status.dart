@@ -16,18 +16,57 @@ class AttendanceStatus {
   });
 
   factory AttendanceStatus.fromJson(Map<String, dynamic> json) {
-    final record = json['activeRecord'] as Map<String, dynamic>?;
+    final rawRecord = json['activeRecord'];
+    final record = rawRecord is Map
+        ? Map<String, dynamic>.from(rawRecord)
+        : <String, dynamic>{};
 
     return AttendanceStatus(
-      status: record?['status']?.toString() ?? json['status']?.toString() ?? 'clocked_out',
-      clockInTime: record?['clockInTime']?.toString() ?? json['clockInTime']?.toString(),
-      clockOutTime: record?['clockOutTime']?.toString() ?? json['clockOutTime']?.toString(),
-      date: record?['attendanceDate']?.toString() ?? json['date']?.toString(),
-      location: record?['locationClockIn']?.toString() ?? json['location']?.toString(),
-      totalWorkingMinutes: record?['totalWorkingMinutes'] ?? json['totalWorkingMinutes'],
+      status: _asString(record['status']) ??
+          _asString(json['status']) ??
+          'clocked_out',
+      clockInTime:
+          _asString(record['clockInTime']) ?? _asString(json['clockInTime']),
+      clockOutTime:
+          _asString(record['clockOutTime']) ?? _asString(json['clockOutTime']),
+      date: _asString(record['attendanceDate']) ??
+          _asString(json['attendanceDate']) ??
+          _asString(json['date']),
+      location: _asString(record['locationClockIn']) ??
+          _asString(json['locationClockIn']) ??
+          _asString(json['location']),
+      totalWorkingMinutes: _asInt(record['totalWorkingMinutes']) ??
+          _asInt(json['totalWorkingMinutes']),
     );
   }
 
-  bool get isClockedIn => status == 'clocked_in';
-  bool get isClockedOut => status == 'clocked_out' || status == 'completed';
+  static String? _asString(dynamic value) {
+    if (value == null) return null;
+    final text = value.toString().trim();
+    return text.isEmpty ? null : text;
+  }
+
+  static int? _asInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.round();
+    return int.tryParse(value.toString());
+  }
+
+  bool get isClockedIn =>
+      clockOutTime == null &&
+      (status == 'clocked_in' ||
+          status == 'break_start' ||
+          status == 'break_end');
+
+  bool get isOnBreak => status == 'break_start' && clockOutTime == null;
+
+  bool get isClockedOut =>
+      status == 'clocked_out' || status == 'completed' || clockOutTime != null;
+
+  bool get hasClockIn => clockInTime != null && clockInTime!.isNotEmpty;
+
+  bool get hasClockOut => clockOutTime != null && clockOutTime!.isNotEmpty;
+
+  bool get isCompleted => hasClockIn && hasClockOut;
 }
