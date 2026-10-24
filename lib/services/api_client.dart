@@ -46,6 +46,9 @@ class ApiClient {
     final headers = <String, String>{
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      'x-client-type': 'mobile',
+      'x-device-browser': 'NovaHR Mobile App',
+      'x-device-os': 'Mobile OS',
     };
     if (token != null && token.isNotEmpty) {
       headers['Authorization'] = 'Bearer $token';

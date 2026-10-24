@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'screens/home_screen.dart';
 import 'screens/login_screen.dart';
@@ -85,18 +86,30 @@ class AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<AuthGate> {
   final _authService = AuthService();
-  Future<bool>? _loginCheck;
+  Future<bool>? _initFuture;
 
   @override
   void initState() {
     super.initState();
-    _loginCheck = _authService.isLoggedIn();
+    _initFuture = _initializeApp();
+  }
+
+  Future<bool> _initializeApp() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        await Geolocator.requestPermission();
+      }
+    } catch (e) {
+      debugPrint("Location permission request failed during startup: $e");
+    }
+    return await _authService.isLoggedIn();
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<bool>(
-      future: _loginCheck,
+      future: _initFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const _SplashScreen();

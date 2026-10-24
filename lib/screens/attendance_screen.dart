@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../models/attendance_status.dart';
 import '../services/attendance_service.dart';
 import '../theme/app_colors.dart';
+import 'package:geolocator/geolocator.dart';
 
 class AttendanceScreen extends StatefulWidget {
   const AttendanceScreen({super.key});
@@ -51,6 +52,47 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     if (state == AppLifecycleState.resumed) {
       _loadData(silent: true);
     }
+  }
+
+Future<Map<String, dynamic>> _getDeviceLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Device GPS is turned off. Please enable location services.');
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Location permissions are denied. Please allow access to clock in.');
+      }
+    }
+    
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception('Location permissions are permanently denied. Please enable them in app settings.');
+    }
+
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.high,
+    );
+
+    double accuracy = position.accuracy;
+    if (accuracy <= 0) accuracy = 50.0;
+
+    if (accuracy > 200) {
+      throw Exception('GPS signal is too weak (Accuracy: ${accuracy.round()}m). Please move outside for a better signal.');
+    }
+
+    return {
+      'latitude': position.latitude,
+      'longitude': position.longitude,
+      'accuracyMeters': accuracy,
+      'locationSource': 'device_gps',
+      'deviceInfo': 'hr app',
+    };
   }
 
   Future<void> _loadData({bool silent = false, bool force = false}) async {
@@ -190,10 +232,17 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     setState(() => _actionLoading = true);
 
     try {
+      final locationData = await _getDeviceLocation();
+
       if (clockIn) {
-        await _attendanceService.clockIn(shiftId: _selectedShiftId);
+        await _attendanceService.clockIn(
+          shiftId: _selectedShiftId,
+          location: locationData,
+        );
       } else {
-        await _attendanceService.clockOut();
+        await _attendanceService.clockOut(
+          location: locationData,
+        );
       }
 
       await _loadData(silent: true, force: true);
@@ -205,8 +254,6 @@ class _AttendanceScreenState extends State<AttendanceScreen>
     } catch (e) {
       if (!mounted) return;
 
-      // Refresh once after a failed action as well. This resolves cases where
-      // the hosted web app changed the attendance state before the mobile app.
       await _loadData(silent: true, force: true);
 
       if (!mounted) return;

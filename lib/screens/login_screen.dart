@@ -5,6 +5,7 @@ import '../theme/app_colors.dart';
 import 'force_password_change_screen.dart';
 import 'forgot_password_screen.dart';
 import 'home_screen.dart';
+import 'package:geolocator/geolocator.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -30,6 +31,34 @@ class _LoginScreenState extends State<LoginScreen> {
     _passwordController.dispose();
     super.dispose();
   }
+  
+  Future<Map<String, dynamic>?> _getDeviceLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) return null;
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return null;
+      }
+      
+      if (permission == LocationPermission.deniedForever) return null;
+
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      return {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'accuracyMeters': position.accuracy,
+        'locationSource': 'device_gps',
+      };
+    } catch (e) {
+      return null;
+    }
+  }
 
   Future<void> _login() async {
     FocusScope.of(context).unfocus();
@@ -38,10 +67,13 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoading = true);
 
     try {
+      final locationData = await _getDeviceLocation();
+
       final requiresPasswordChange = await _authService.login(
         identifier: _identifierController.text.trim(),
         organizationSlug: _organizationController.text.trim(),
         password: _passwordController.text,
+        locationData: locationData,
       );
 
       if (!mounted) return;

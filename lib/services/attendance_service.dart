@@ -56,12 +56,14 @@ class AttendanceService {
     String? shiftId,
     String? notes,
     String? ipAddress,
+    Map<String, dynamic>? location,
   }) async {
     await _api.postTrpc(
       'attendance.clockIn',
       {
         if (shiftId != null && shiftId.isNotEmpty) 'shiftId': shiftId,
         if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (location != null) 'location': location,
         if (ipAddress != null && ipAddress.isNotEmpty) 'ipAddress': ipAddress,
       },
     );
@@ -69,12 +71,14 @@ class AttendanceService {
 
   Future<void> clockOut({
     String? notes,
+    Map<String, dynamic>? location,
     String? ipAddress,
   }) async {
     await _api.postTrpc(
       'attendance.clockOut',
       {
         if (notes != null && notes.isNotEmpty) 'notes': notes,
+        if (location != null) 'location': location,
         if (ipAddress != null && ipAddress.isNotEmpty) 'ipAddress': ipAddress,
       },
     );
@@ -199,10 +203,8 @@ class AttendanceService {
 
     final todayShifts = <Map<String, dynamic>>[];
     for (final item in rawShifts) {
-      if (item is! Map) continue;
-      final assignment = Map<String, dynamic>.from(item);
-      if (_shiftDateKey(assignment['shiftDate']) == todayKey) {
-        todayShifts.add(assignment);
+      if (item is Map) {
+        todayShifts.add(Map<String, dynamic>.from(item));
       }
     }
 

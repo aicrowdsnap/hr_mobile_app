@@ -9,6 +9,7 @@ class AuthService {
     required String identifier,
     required String organizationSlug,
     required String password,
+    Map<String, dynamic>? locationData,
   }) async {
     final resolvedData = await _api.postTrpc(
       'employee.resolveLoginCredentials',
@@ -36,6 +37,18 @@ class AuthService {
         'Invalid employee credentials or organization.',
       );
     }
+    final customHeaders = <String, String>{
+      'x-client-type': 'mobile',
+      'x-device-browser': 'NovaHR Mobile App',
+      'x-device-os': 'Mobile OS',
+    };
+
+    if (locationData != null) {
+      customHeaders['x-latitude'] = locationData['latitude'].toString();
+      customHeaders['x-longitude'] = locationData['longitude'].toString();
+      customHeaders['x-geo-accuracy'] = locationData['accuracyMeters'].toString();
+      customHeaders['x-location-source'] = locationData['locationSource'].toString();
+    }
 
     final response = await _api.postRest(
       '/api/auth/sign-in/email',
@@ -44,6 +57,7 @@ class AuthService {
         'password': password,
         'rememberMe': true,
       },
+      headers: customHeaders,
     );
 
     if (response.statusCode < 200 ||
